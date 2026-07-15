@@ -1,0 +1,20 @@
+{
+  "a2aServers": {
+    "weather_agent": {
+      "base_url": "http://weather-agent:3000",
+      "description": "Query weather information",
+      "timeout_secs": 30,
+      "headers": {
+        "Authorization": "Bearer your-token",
+      }
+    },
+    "secure_agent": {
+      "base_url": "http://secure-agent:3000",
+      "description": "Secure agent requiring authentication",
+      "timeout_secs": 60,
+      "headers": {
+        "X-Api-Key": "your-api-key"
+      }
+    }
+  }
+}

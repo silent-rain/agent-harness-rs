@@ -1,0 +1,118 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/core/entity",
+  "crates/core/migration",
+  "crates/core/err-code",
+  "crates/core/inject",
+
+  # Agent Harness
+  "crates/agent-base",
+  "crates/agent-assembly",
+  "services/agent-service",
+]
+
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+
+[profile.dev]
+debug = 1 # 0: 无 debug 信息, 1: 仅行号信息, 2: 完整信息(默认)
+
+
+[workspace.dependencies]
+err-code = { path = "crates/core/err-code" }
+inject = { path = "crates/core/inject" }
+
+database = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", branch = "dev", package = "database" }
+axum-context = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", branch = "dev", package = "axum-context" }
+axum-response = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", branch = "dev", package = "axum-response" }
+axum-validator = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", branch = "dev", package = "axum-validator" }
+
+# Agent Harness
+entity = { path = "crates/core/entity" }
+migration = { path = "crates/core/migration" }
+agent-base = { path = "crates/agent-base" }
+agent-assembly = { path = "crates/agent-assembly" }
+
+# 异步运行时
+futures = "0.3"
+tokio = "1.52"
+tokio-util = "0.7"
+tokio-stream = "0.1"
+async-std = "1.13"
+async-trait = "0.1"
+async-stream = "0.3"
+listenfd = "1.0"
+
+
+# 服务相关
+axum = "0.8"
+tonic = "0.14"
+
+# 后台服务
+validator = "0.20"
+validator_derive = "0.20"
+
+# 网络相关
+reqwest = "0.13"
+mime_guess = "2.0" # mime
+
+
+# 数据库
+sea-orm = "1.1"
+sea-orm-migration = "1.1"
+sqlx = "0.9"
+
+# 依赖注入
+nject = "0.5"
+
+
+# AI
+rig-core = "0.39"
+async-openai = "0.41"
+rmcp = "1.8"
+a2a-rs-core = "1.0"
+a2a-rs-server = "1.0"
+a2a-rs-client = "1.0"
+
+# 错误处理
+thiserror = "2.0"
+anyhow = "1.0"
+
+# 日志
+log = "0.4"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+color-eyre = "0.6"
+colored = "3.0"
+
+# 序列化
+serde = "1.0"
+serde_json = "1.0"
+serde_repr = "0.1"
+serde_urlencoded = "0.7"
+strum = "0.28"
+strum_macros = "0.28"
+
+# 加密
+uuid = "1.23"
+sha2 = "0.11"
+base64 = "0.22"
+hex = "0.4"     # 用于将字节数组转为可读的十六进制字符串
+
+
+# 其他
+dotenv = "0.15"
+clap = "4"
+time = "0.3"
+chrono = "0.4"
+rust_decimal = "1.42"
+config = { version = "0.15" }
+toml = "1.1.2+spec-1.1.0"
+glob = "0.3"
+zip = "8.6"
+tempfile = "3.23"

@@ -1,0 +1,13 @@
+[package]
+name = "inject"
+version = "0.1.0"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+database = { workspace = true }
+sea-orm = { workspace = true }
+
+nject = { workspace = true }
+thiserror = { workspace = true }

@@ -1,0 +1,43 @@
+{
+  "recommendations": [
+    // Rust 开发
+    "rust-lang.rust-analyzer",
+    "drblury.protobuf-vsc",
+    "inferrinizzard.prettier-sql-vscode",
+    "qufiwefefwoyn.inline-sql-syntax",
+
+    // TypeScript/JavaScript 支持
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+
+    // React 开发
+    "dsznajder.es7-react-js-snippets",
+    "ms-vscode.vscode-js-profile-flame",
+
+    // 代码质量
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "usernamehw.errorlens",
+
+    // Protobuf
+    "drblury.protobuf-vsc",
+
+    // Git 集成
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+
+    // 图标主题
+    "pkief.material-icon-theme",
+
+    // 其他实用扩展
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.live-server",
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+
+    // 调试工具
+    "ms-vscode.vscode-js-debug",
+    "ms-vscode.vscode-js-debug-companion"
+  ]
+}

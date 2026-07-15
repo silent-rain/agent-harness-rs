@@ -1,0 +1,368 @@
+---
+description: React 前端编码规范
+alwaysApply: true
+enabled: true
+updatedAt: 2026-05-20T16:37:00.000Z
+provider:
+---
+
+# React 前端编码规范
+
+你是一名精通 React + TypeScript 的前端技术专家，负责保障 `admin-dashboard` 等 React 项目代码的一致性、可读性与可维护性。
+
+本规范聚焦于：
+
+- 文件 / 目录命名规范（**重点**）
+- 组件结构与样式约定
+- TypeScript 使用规范
+- 代码组织与导入顺序
+
+## 编码标准
+
+- 遵循《代码整洁之道》的编码方式
+- 优先使用函数组件 + Hooks，避免类组件
+- 单一职责：一个组件 / Hook 只做一件事
+- 显式优于隐式：代码清晰可读 > 紧凑炫技
+- 复用项目已有组件、hooks、utils，避免重复造轮子
+- 所有公共组件、Hook、工具函数都要有 TSDoc 注释
+- 所有外部输入（接口数据、URL 参数）都要做类型校验
+
+---
+
+## 一、文件与目录命名规范
+
+### 1.1 通用组件（`src/components/**`）
+
+- **React 组件**：PascalCase，如 `UserProfile.tsx`
+- **组件目录**：与组件同名（PascalCase），如 `UserProfile/UserProfile.tsx`
+- **组件样式**：与组件**同名**，如 `UserProfile.module.scss`
+- **测试文件**：组件名 + `.test` 后缀，如 `UserProfile.test.tsx`
+
+```
+components/
+└── UserProfile/
+    ├── UserProfile.tsx
+    ├── UserProfile.module.scss
+    ├── UserProfile.test.tsx
+    └── index.ts                 # 仅做 re-export，便于外部 import
+```
+
+### 1.2 页面文件（`src/pages/**`） ⭐ 重点
+
+页面与通用组件**命名规则不同**，要明确区分「路由分组目录」与「页面入口文件」。
+
+| 类型 | 命名风格 | 示例 |
+|---|---|---|
+| 页面分组目录 | **lowercase** 或 kebab-case | `pages/dashboard/`、`pages/system/`、`pages/exception/` |
+| 页面入口文件 | **PascalCase**，**禁止使用 `index.tsx`** | `pages/dashboard/Dashboard.tsx` |
+| 页面样式文件 | 与对应 tsx **同名** | `Dashboard.module.scss` ↔ `Dashboard.tsx` |
+| 状态码类页面 | **避免数字开头**，使用语义化命名 | `Forbidden.tsx`（403）、`NotFound.tsx`（404） |
+
+**为什么禁止 `index.tsx`？**
+
+1. IDE 标签页全是 `index.tsx`，难以区分；
+2. 错误堆栈中只能看到 `index.tsx:42`，定位困难；
+3. 全局搜索 `index` 噪声极大。
+
+**正确示例：**
+
+```
+pages/
+├── dashboard/                   # ✅ lowercase 分组目录
+│   ├── Dashboard.tsx            # ✅ PascalCase 入口
+│   └── Dashboard.module.scss    # ✅ 与 tsx 同名
+├── login/
+│   ├── Login.tsx
+│   └── Login.module.scss
+├── exception/
+│   ├── Forbidden.tsx            # ✅ 语义化命名（403）
+│   └── NotFound.tsx             # ✅ 语义化命名（404）
+├── list/
+│   └── TableList.tsx
+└── system/
+    ├── User.tsx
+    └── Menu.tsx
+```
+
+**错误示例：**
+
+```
+pages/
+├── Dashboard/                   # ❌ 分组目录不应 PascalCase
+│   ├── index.tsx                # ❌ 禁止 index.tsx
+│   └── Dashboard.module.scss    # ❌ scss 与 tsx 文件名不对应
+└── exception/
+    ├── 403.tsx                  # ❌ 数字开头
+    └── 404.tsx                  # ❌ 数字开头
+```
+
+**路由中如何引用：**
+
+```typescript
+// ✅ 路径包含完整文件名，可读性高
+const Dashboard = lazy(() => import('@/pages/dashboard/Dashboard'));
+const LoginPage = lazy(() => import('@/pages/login/Login'));
+const ForbiddenPage = lazy(() => import('@/pages/exception/Forbidden'));
+const NotFoundPage = lazy(() => import('@/pages/exception/NotFound'));
+
+// ❌ 依赖 index.tsx 的隐式解析
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+```
+
+### 1.3 工具函数 / 类 / 常量
+
+- **工具函数**：camelCase，如 `formatDate.ts`
+- **工具类**：PascalCase，如 `ApiClient.ts`
+- **常量文件**：SCREAMING_SNAKE_CASE，如 `API_ENDPOINTS.ts`
+- **类型定义文件**：camelCase 或 `types.ts`，如 `user.ts`、`route.ts`
+
+### 1.4 样式文件
+
+- **全局 SCSS**：kebab-case，如 `user-profile.scss`
+- **CSS Modules**：与组件同名 + `.module` 后缀，如 `UserProfile.module.scss`
+- **样式类名**：CSS Modules 内部类名使用 camelCase，方便 `styles.userProfile` 访问
+
+---
+
+## 二、代码组织规范
+
+### 2.1 导入顺序
+
+按以下顺序分组，组间空行分隔：
+
+1. 第三方库（react、antd、第三方 hooks）
+2. 项目内部模块（`@/types`、`@/utils`、`@/store`）
+3. 相对路径模块（`./Foo`、`../Bar`）
+4. 样式文件
+5. 类型导入（`import type {...}`）
+
+```typescript
+// 第三方
+import { useState, useEffect } from 'react';
+import { Button, Form } from 'antd';
+import { useNavigate } from 'react-router-dom';
+
+// 项目内部
+import { useUserStore } from '@/store';
+import { formatDate } from '@/utils';
+
+// 相对路径
+import { LoginForm } from './LoginForm';
+
+// 样式
+import styles from './Login.module.scss';
+
+// 类型
+import type { LoginParams } from '@/types/user';
+```
+
+### 2.2 组件文件结构
+
+```typescript
+// 1. 导入
+// 2. 类型定义（Props / 内部类型）
+// 3. 常量
+// 4. 组件定义（默认导出放在文件底部或使用 export default function）
+// 5. 内部辅助函数（如果只在本组件使用）
+```
+
+---
+
+## 三、React 组件规范
+
+### 3.1 函数组件
+
+- 使用 `function` 声明（页面级）或箭头函数（小组件）
+- 用 `interface` 定义 Props
+- 默认导出页面组件，命名导出工具组件
+
+```typescript
+interface UserProfileProps {
+  user: User;
+  onUpdate?: (user: User) => void;
+}
+
+export function UserProfile({ user, onUpdate }: UserProfileProps) {
+  // 组件逻辑
+  return <div className={styles.wrapper}>{/* JSX */}</div>;
+}
+```
+
+### 3.2 Hooks 使用
+
+- 自定义 Hook 必须以 `use` 开头
+- 单一职责，复杂逻辑拆成多个小 Hook
+- 副作用 (`useEffect`) 的依赖数组必须完整
+- 计算昂贵的派生值用 `useMemo`，回调引用稳定用 `useCallback`
+
+```typescript
+function useUserData(userId: string) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchUser(userId)
+      .then(u => { if (!cancelled) setUser(u); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  return { user, loading };
+}
+```
+
+### 3.3 性能优化
+
+- 列表渲染必须提供稳定的 `key`（不要用 index）
+- 大型纯展示组件用 `React.memo`
+- 路由级页面用 `React.lazy` + `Suspense` 进行代码分割
+
+```typescript
+const Dashboard = lazy(() => import('@/pages/dashboard/Dashboard'));
+```
+
+---
+
+## 四、TypeScript 规范
+
+### 4.1 类型定义
+
+- 优先 `interface`，需要联合 / 工具类型时用 `type`
+- 类型名使用描述性 PascalCase
+- **严禁** `any`，未知类型用 `unknown` 并做类型守卫
+
+```typescript
+// ✅
+interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message?: string;
+}
+
+// ❌
+interface UserData {
+  [key: string]: any;
+}
+```
+
+### 4.2 泛型
+
+- 单字母泛型 `T` / `K` / `V` 适用于通用容器
+- 业务泛型用语义化命名，如 `TUser`、`TResponse`
+
+---
+
+## 五、样式规范
+
+### 5.1 CSS Modules
+
+- 优先 CSS Modules，避免全局污染
+- 类名使用 camelCase
+- 暗色主题等全局态用 `:global(body.dark) &` 嵌套
+
+```scss
+// Dashboard.module.scss
+.wrapper {
+  padding: 1rem;
+
+  :global(body.dark) & {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+```
+
+### 5.2 响应式
+
+- 移动优先 (`min-width`)
+- 抽离统一断点变量
+
+```scss
+$breakpoint-md: 768px;
+
+.container {
+  width: 100%;
+  @media (min-width: $breakpoint-md) {
+    width: 80%;
+    margin: 0 auto;
+  }
+}
+```
+
+---
+
+## 六、错误处理规范
+
+### 6.1 异步操作
+
+- 必须 `try/catch` 处理异步错误
+- 用户态错误用 `message.error`，开发态错误 `console.error`
+
+```typescript
+async function fetchUserData(userId: string) {
+  try {
+    const res = await api.get(`/users/${userId}`);
+    return res.data;
+  } catch (error) {
+    console.error('Failed to fetch user data:', error);
+    throw new Error('获取用户数据失败');
+  }
+}
+```
+
+### 6.2 表单
+
+- 用 antd `Form` 内置 `rules` 做客户端校验
+- 客户端 + 服务端**双重校验**
+- 错误提示要明确，避免「请求失败」这种无意义文案
+
+---
+
+## 七、Git 提交规范
+
+使用 Conventional Commits：
+
+```text
+<type>(<scope>): <subject>
+```
+
+类型：
+
+- `feat` 新功能 / `fix` 修复 / `docs` 文档 / `style` 格式
+- `refactor` 重构 / `test` 测试 / `chore` 构建工具
+
+示例：
+
+```text
+refactor(pages): rename pages to lowercase dirs and PascalCase entries
+
+- pages/Dashboard/index.tsx → pages/dashboard/Dashboard.tsx
+- pages/Login/index.tsx     → pages/login/Login.tsx
+- pages/exception/403.tsx   → pages/exception/Forbidden.tsx
+- pages/exception/404.tsx   → pages/exception/NotFound.tsx
+```
+
+---
+
+## 八、代码审查检查清单
+
+提交前请确认：
+
+- [ ] 通过 ESLint 检查（`pnpm lint`）
+- [ ] 通过 Prettier 格式化
+- [ ] 通过 TypeScript 类型检查（`tsc -b --noEmit`）
+- [ ] 所有页面分组目录均为 lowercase
+- [ ] 所有页面入口为 PascalCase，无 `index.tsx`
+- [ ] 页面 scss 与 tsx 同名
+- [ ] 状态码类页面使用语义化命名
+- [ ] 所有公共组件 / Hook 都有 TSDoc 注释
+- [ ] 没有 `any`，没有控制台日志残留
+- [ ] 没有硬编码敏感信息
+
+---
+
+## 九、参考文档
+
+- 项目级风格指南：`admin-dashboard/docs/STYLE_GUIDE.md`
+- React 官方文档：<https://react.dev>
+- TypeScript 手册：<https://www.typescriptlang.org/docs/>

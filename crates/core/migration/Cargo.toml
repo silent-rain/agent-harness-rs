@@ -1,0 +1,43 @@
+[package]
+name = "migration"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Agent 域数据库迁移模块，包含智能体基座所有核心表的迁移定义"
+
+
+[dependencies]
+entity = { workspace = true }
+
+async-std = { workspace = true, features = ["attributes", "tokio1"] }
+sea-orm = { workspace = true }
+sea-orm-migration = { workspace = true, features = [
+    # Enable at least one `ASYNC_RUNTIME` and `DATABASE_DRIVER` feature if you want to run migration via CLI.
+    # View the list of supported features at https://www.sea-ql.org/SeaORM/docs/install-and-config/database-and-async-runtime.
+    # e.g.
+    "runtime-tokio-rustls", # `ASYNC_RUNTIME` feature
+    # `DATABASE_DRIVER` feature
+    "sqlx-mysql",
+    "sqlx-postgres",
+    "sqlx-sqlite",
+] }
+
+
+[dev-dependencies]
+database = { workspace = true }
+
+sqlx = { workspace = true }
+dotenv = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = [
+    "macros",
+    "rt-multi-thread",
+    "test-util",
+] }
+colored = { workspace = true }
+tracing-subscriber = { workspace = true, features = [
+    "env-filter",
+    "time",
+    "local-time",
+    "tracing-log",
+] }

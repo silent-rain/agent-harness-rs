@@ -1,0 +1,169 @@
+[package]
+name = "agent-base"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "智能体运行时基座库，提供 Agent Runtime、Planner、Executor、Policy、Streaming 等核心能力"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+default = []
+
+# 便捷聚合：启用全部能力
+full = ["command", "rule", "skill", "sub_agent", "mcp", "a2a"]
+
+# 能力模块按需启用（默认全部关闭）
+command = []
+rule = []
+skill = ["dep:zip", "dep:sha2", "dep:hex"]
+sub_agent = []
+
+# 启用 MCP 工具调用支持（SSE / HTTP / stdio 传输）
+mcp = [
+    "dep:rmcp",
+    "rig-core/rmcp",
+    "rmcp/client",
+    "rmcp/client-side-sse",
+    "rmcp/transport-streamable-http-client",
+    "rmcp/transport-streamable-http-client-reqwest",
+    "rmcp/transport-child-process",
+]
+
+# 启用 A2A（Agent-to-Agent）协议支持
+# - a2a-rs-server: A2A JSON-RPC 服务端框架
+# - a2a-rs-client: A2A 客户端（服务发现 + 消息发送）
+# - a2a-rs-core:   A2A 协议类型（AgentCard / Task / Message 等）
+a2a = [
+    "dep:a2a-rs-server",
+    "dep:a2a-rs-client",
+    "dep:a2a-rs-core",
+    "dep:reqwest_012",
+]
+
+
+[dependencies]
+# LLM 推理与工具系统（核心依赖）
+rig-core = { workspace = true }
+async-openai = { workspace = true, features = ["chat-completion-types"] }
+
+# MCP 工具调用（可选）
+rmcp = { workspace = true, optional = true }
+
+# A2A 协议支持（可选）
+a2a-rs-core = { workspace = true, optional = true }
+a2a-rs-server = { workspace = true, optional = true }
+a2a-rs-client = { workspace = true, optional = true }
+# a2a-rs-client 依赖 reqwest 0.12，需单独引入以构建兼容的 HTTP client
+reqwest_012 = { package = "reqwest", version = "0.12", features = [
+    "json",
+], optional = true }
+
+
+# 异步运行时
+tokio = { workspace = true, features = [
+    "macros",
+    "rt-multi-thread",
+    "sync",
+    "process",
+    "time",
+    "fs",
+] }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# 异步流
+tokio-stream = { workspace = true }
+async-stream = { workspace = true }
+
+# HTTP 客户端（DuckDuckGo 等网络工具使用）
+reqwest = { workspace = true, features = ["json"] }
+
+# 序列化
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+config = { workspace = true }
+
+# 错误处理
+thiserror = { workspace = true }
+
+# 日志与追踪
+tracing = { workspace = true }
+
+# 工具
+chrono = { workspace = true, features = ["serde"] }
+uuid = { workspace = true, features = ["v4"] }
+glob = { workspace = true }
+mime_guess = { workspace = true }
+
+# Skill 安装：zip 打包/解包 + sha256 校验（可选，feature = "skill" 时启用）
+zip = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+
+
+[dev-dependencies]
+anyhow = { workspace = true }
+tempfile = { workspace = true }
+tracing-subscriber = { workspace = true, features = [
+    "env-filter",
+    "time",
+    "local-time",
+] }
+# 示例从 .env 读取模型配置（仅 examples 使用）
+dotenv = { workspace = true }
+
+# ===== Examples =====
+
+[[example]]
+name = "basic_agent"
+required-features = ["rule"]
+
+[[example]]
+name = "basic_agent_streaming"
+required-features = ["rule"]
+
+[[example]]
+name = "basic_agent_openai_streaming"
+required-features = ["rule"]
+
+[[example]]
+name = "loca_source_agent"
+required-features = ["full"]
+
+[[example]]
+name = "full_agent"
+required-features = ["full"]
+
+[[example]]
+name = "full_agent_streaming"
+required-features = ["full"]
+
+[[example]]
+name = "tool_calling_streaming"
+
+[[example]]
+name = "a2a_server"
+path = "examples/a2a/a2a_server.rs"
+required-features = ["a2a"]
+
+[[example]]
+name = "a2a_client"
+path = "examples/a2a/a2a_client.rs"
+required-features = ["a2a"]
+
+[[example]]
+name = "mcp_stdio"
+path = "examples/mcp/mcp_stdio.rs"
+required-features = ["mcp"]
+
+[[example]]
+name = "mcp_sse"
+path = "examples/mcp/mcp_sse.rs"
+required-features = ["mcp"]
+
+[[example]]
+name = "mcp_streamable_http"
+path = "examples/mcp/mcp_streamable_http.rs"
+required-features = ["mcp"]

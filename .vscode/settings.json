@@ -1,0 +1,113 @@
+{
+  // Rust 配置
+  "rust-analyzer.linkedProjects": [],
+
+  // SQL 配置
+  "Prettier-SQL.SQLFlavourOverride": "mysql",
+  "Prettier-SQL.keywordCase": "upper",
+
+  // TypeScript 配置
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+
+  // 格式化
+  // "editor.defaultFormatter": null,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+  },
+
+  // 文件关联
+  "files.associations": {
+    "*.css": "css",
+    "*.scss": "scss",
+    "*.module.css": "css",
+    "*.module.scss": "scss"
+  },
+
+  // 搜索配置
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.git": true,
+    "**/.vscode": true
+  },
+
+  // 文件排除
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true
+  },
+
+  // ESLint 配置
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.workingDirectories": [
+    {
+      "mode": "auto"
+    }
+  ],
+
+  // Prettier 配置
+  "prettier.requireConfig": true,
+  "prettier.useEditorConfig": false,
+
+  // 编辑器配置
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": true,
+  "editor.wordWrap": "on",
+  "editor.minimap.enabled": false,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "editor.rulers": [120],
+
+  // 文件保存配置
+  "files.autoSave": "onFocusChange",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+
+  // 路径别名智能提示
+  "typescript.preferences.pathAlias": {
+    "@/*": ["./src/*"]
+  },
+  "javascript.preferences.pathAlias": {
+    "@/*": ["./src/*"]
+  },
+
+  // protobuf 配置
+  "protobuf.includes": ["${workspaceFolder}/crates/grpc-proto/proto"],
+  // "protobuf.protoc.path": "protoc",
+  // "protobuf.protoc.options": ["--proto_path=${workspaceFolder}", "--go_out=${workspaceFolder}/gen/go"],
+
+  // 扩展推荐
+  "extensions.ignoreRecommendations": false,
+  "[typescript]": {
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+  },
+  "[sql]": {
+    "editor.defaultFormatter": "inferrinizzard.prettier-sql-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
+  },
+  "[proto]": {
+    "editor.defaultFormatter": "DrBlury.protobuf-vsc"
+  }
+}

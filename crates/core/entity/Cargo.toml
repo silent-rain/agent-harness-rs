@@ -1,0 +1,17 @@
+[package]
+name = "entity"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Agent 域 SeaORM 实体定义，包含智能体基座所有核心表的实体"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+sea-orm = { workspace = true }
+
+serde = { workspace = true, features = ["derive"] }
+chrono = { workspace = true }
+time = { workspace = true }
+rust_decimal = { workspace = true }

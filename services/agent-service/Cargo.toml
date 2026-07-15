@@ -1,0 +1,39 @@
+[package]
+name = "agent-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+database = { workspace = true }
+entity = { workspace = true }
+err-code = { workspace = true }
+inject = { workspace = true }
+axum-response = { workspace = true }
+axum-validator = { workspace = true }
+
+# 智能体核心
+agent-base = { workspace = true }
+agent-assembly = { workspace = true }
+
+axum = { workspace = true }
+axum-context = { workspace = true }
+validator = { workspace = true, features = ["derive"] }
+sea-orm = { workspace = true }
+nject = { workspace = true }
+
+log = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+futures = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+async-stream = { workspace = true }
+
+[dev-dependencies]
+sea-orm-migration = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

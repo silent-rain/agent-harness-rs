@@ -1,0 +1,19 @@
+//! 控制器层
+pub mod a2a_service_registry;
+pub mod a2a_service_rel;
+pub mod agent_config;
+pub mod agent_run;
+pub mod agent_session;
+pub mod command_registry;
+pub mod command_rel;
+pub mod llm_model;
+pub mod llm_model_rel;
+pub mod mcp_service_registry;
+pub mod mcp_service_rel;
+pub mod rule_registry;
+pub mod rule_rel;
+pub mod skill_package;
+pub mod skill_rel;
+pub mod sub_agent_rel;
+pub mod tool_registry;
+pub mod tool_rel;

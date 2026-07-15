@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "fetch-mcp": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "transportType": "stdio",
+      "env": {
+        "API_KEY": "your-api-key"
+      }
+    },
+    "sse-service": {
+      "url": "http://127.0.0.1:8080/sse",
+      "transportType": "sse",
+      "timeout": 30000,
+      "headers": {
+        "Authorization": "Bearer your-token"
+      }
+    },
+    "http-service": {
+      "url": "http://127.0.0.1:8081/mcp",
+      "transportType": "streamable-http",
+      "timeout": 30000,
+      "headers": {
+        "X-Api-Key": "your-api-key"
+      }
+    }
+  }
+}
