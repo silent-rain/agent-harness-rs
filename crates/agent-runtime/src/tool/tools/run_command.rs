@@ -3,7 +3,6 @@
 //! 执行 Shell 命令。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -46,29 +45,29 @@ impl Tool for RunCommandTool {
     type Args = RunCommandArgs;
     type Output = RunCommandOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "run_command".to_string(),
-            description: "执行 Shell 命令。".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "要执行的 Shell 命令"
-                    },
-                    "working_directory": {
-                        "type": "string",
-                        "description": "工作目录（可选，默认使用当前目录）"
-                    },
-                    "timeout_secs": {
-                        "type": "integer",
-                        "description": "超时时间（秒，默认 30）"
-                    }
+    fn description(&self) -> String {
+        "执行 Shell 命令。".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "要执行的 Shell 命令"
                 },
-                "required": ["command"]
-            }),
-        }
+                "working_directory": {
+                    "type": "string",
+                    "description": "工作目录（可选，默认使用当前目录）"
+                },
+                "timeout_secs": {
+                    "type": "integer",
+                    "description": "超时时间（秒，默认 30）"
+                }
+            },
+            "required": ["command"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

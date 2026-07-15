@@ -4,7 +4,6 @@
 
 use std::collections::HashMap;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -56,25 +55,25 @@ impl Tool for McpServiceToolsTool {
     type Args = McpServiceToolsArgs;
     type Output = McpServiceToolsOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
+    fn description(&self) -> String {
         let service_names: Vec<&str> = self.service_tools.keys().map(|s| s.as_str()).collect();
-        ToolDefinition {
-            name: "mcp_service_tools".to_string(),
-            description: format!(
-                "List all available tools for a specified MCP service. Available services: [{}]",
-                service_names.join(", ")
-            ),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "service_name": {
-                        "type": "string",
-                        "description": "The MCP service name to query tools for"
-                    }
-                },
-                "required": ["service_name"]
-            }),
-        }
+        format!(
+            "List all available tools for a specified MCP service. Available services: [{}]",
+            service_names.join(", ")
+        )
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "service_name": {
+                    "type": "string",
+                    "description": "The MCP service name to query tools for"
+                }
+            },
+            "required": ["service_name"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

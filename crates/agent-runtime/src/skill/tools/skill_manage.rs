@@ -32,7 +32,6 @@ use std::{
 };
 
 use async_trait::async_trait;
-use rig_core::completion::ToolDefinition;
 use serde::{Deserialize, Serialize};
 
 use crate::Error;
@@ -195,34 +194,34 @@ impl ContextualTool for SkillManagementTool {
     type Args = SkillManageArgs;
     type Output = SkillManageOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: Self::NAME.to_string(),
-            description: "管理当前智能体的 Skill：安装、更新、卸载、列表、查询。\
+    fn description(&self) -> String {
+        "管理当前智能体的 Skill：安装、更新、卸载、列表、查询。\
                 参数 `action` 取值 `install` | `update` | `uninstall` | `list` | `query`。\
                 `source` 必须是位于受信任路径前缀下的本地目录或 file:// URL，\
                 远端来源由外层流程预先下载后再调用。"
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["install", "update", "uninstall", "list", "query"],
-                        "description": "操作类型"
-                    },
-                    "source": {
-                        "type": "string",
-                        "description": "install/update 时使用：本地路径或 file:// URL"
-                    },
-                    "skill_code": {
-                        "type": "string",
-                        "description": "uninstall/query 必填；install/update 可选（缺省时从 SKILL.md 推断）"
-                    }
+            .to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["install", "update", "uninstall", "list", "query"],
+                    "description": "操作类型"
                 },
-                "required": ["action"]
-            }),
-        }
+                "source": {
+                    "type": "string",
+                    "description": "install/update 时使用：本地路径或 file:// URL"
+                },
+                "skill_code": {
+                    "type": "string",
+                    "description": "uninstall/query 必填；install/update 可选（缺省时从 SKILL.md 推断）"
+                }
+            },
+            "required": ["action"]
+        })
     }
 
     async fn call(

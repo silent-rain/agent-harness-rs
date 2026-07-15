@@ -3,7 +3,6 @@
 //! 列出指定目录的内容。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -49,25 +48,25 @@ impl Tool for ListDirTool {
     type Args = ListDirArgs;
     type Output = ListDirOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "list_dir".to_string(),
-            description: "列出指定目录下的文件和子目录信息，包括文件大小和类型。".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "要列出内容的目录路径"
-                    },
-                    "show_hidden": {
-                        "type": "boolean",
-                        "description": "是否显示隐藏文件（默认 false）"
-                    }
+    fn description(&self) -> String {
+        "列出指定目录下的文件和子目录信息，包括文件大小和类型。".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "要列出内容的目录路径"
                 },
-                "required": ["path"]
-            }),
-        }
+                "show_hidden": {
+                    "type": "boolean",
+                    "description": "是否显示隐藏文件（默认 false）"
+                }
+            },
+            "required": ["path"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

@@ -13,7 +13,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -117,30 +116,30 @@ impl Tool for SkillSelectDocsTool {
     type Args = SkillSelectDocsArgs;
     type Output = SkillSelectDocsOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "skill_select_docs".to_string(),
-            description: "读取指定技能下一个或多个资源文档的完整内容。\
+    fn description(&self) -> String {
+        "读取指定技能下一个或多个资源文档的完整内容。\
                 先通过 skill_load 或 skill_list_docs 获取文档路径列表，\
                 再通过此工具精确读取所需文档内容。\
                 支持一次请求读取多个文档。"
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "skill_code": {
-                        "type": "string",
-                        "description": "技能编码（即 Skills 列表中的技能标识）"
-                    },
-                    "docs": {
-                        "type": "array",
-                        "items": { "type": "string" },
-                        "description": "要读取的文件路径列表（相对于 skill 目录，如 [\"references/guide.md\"]）"
-                    }
+            .to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "skill_code": {
+                    "type": "string",
+                    "description": "技能编码（即 Skills 列表中的技能标识）"
                 },
-                "required": ["skill_code", "docs"]
-            }),
-        }
+                "docs": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "要读取的文件路径列表（相对于 skill 目录，如 [\"references/guide.md\"]）"
+                }
+            },
+            "required": ["skill_code", "docs"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

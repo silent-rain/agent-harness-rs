@@ -10,7 +10,6 @@
 
 use std::sync::Arc;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -82,17 +81,17 @@ impl Tool for RuleListTool {
     type Args = RuleListArgs;
     type Output = RuleListOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "rule_list".to_string(),
-            description: "列出所有已注入 System Prompt 的规则摘要（名称与来源）。\
+    fn description(&self) -> String {
+        "列出所有已注入 System Prompt 的规则摘要（名称与来源）。\
                 当需要了解当前生效的规则全集时调用此工具。"
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {}
-            }),
-        }
+            .to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {}
+        })
     }
 
     async fn call(&self, _args: Self::Args) -> Result<Self::Output, Self::Error> {

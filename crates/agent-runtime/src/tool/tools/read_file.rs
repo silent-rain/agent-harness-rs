@@ -3,7 +3,6 @@
 //! 读取指定路径的文件内容。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -43,29 +42,29 @@ impl Tool for ReadFileTool {
     type Args = ReadFileArgs;
     type Output = ReadFileOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "read_file".to_string(),
-            description: "读取指定路径的文件内容。支持按行范围读取。".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "要读取的文件路径"
-                    },
-                    "start_line": {
-                        "type": "integer",
-                        "description": "起始行号（从 1 开始，可选）"
-                    },
-                    "line_count": {
-                        "type": "integer",
-                        "description": "读取行数（可选，默认读取全部）"
-                    }
+    fn description(&self) -> String {
+        "读取指定路径的文件内容。支持按行范围读取。".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "要读取的文件路径"
                 },
-                "required": ["path"]
-            }),
-        }
+                "start_line": {
+                    "type": "integer",
+                    "description": "起始行号（从 1 开始，可选）"
+                },
+                "line_count": {
+                    "type": "integer",
+                    "description": "读取行数（可选，默认读取全部）"
+                }
+            },
+            "required": ["path"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

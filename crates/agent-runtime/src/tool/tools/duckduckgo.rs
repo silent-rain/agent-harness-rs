@@ -6,7 +6,6 @@
 //! 当前为最小可用实现：调用 `https://api.duckduckgo.com/?q=...&format=json`，
 //! 返回 `AbstractText` / `RelatedTopics` 摘要。任务 5 中会进一步丰富参数与结果结构。
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -63,29 +62,27 @@ impl Tool for DuckDuckGoTool {
     type Args = DuckDuckGoArgs;
     type Output = DuckDuckGoOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "duckduckgo_search".to_string(),
-            description:
-                "使用 DuckDuckGo 进行轻量级网络搜索，返回 Instant Answer 摘要及相关链接条目。"
-                    .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "要搜索的查询关键字"
-                    },
-                    "max_results": {
-                        "type": "integer",
-                        "description": "返回的相关条目最大数量（默认 5，最大 20）",
-                        "minimum": 1,
-                        "maximum": 20
-                    }
+    fn description(&self) -> String {
+        "使用 DuckDuckGo 进行轻量级网络搜索，返回 Instant Answer 摘要及相关链接条目。".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "要搜索的查询关键字"
                 },
-                "required": ["query"]
-            }),
-        }
+                "max_results": {
+                    "type": "integer",
+                    "description": "返回的相关条目最大数量（默认 5，最大 20）",
+                    "minimum": 1,
+                    "maximum": 20
+                }
+            },
+            "required": ["query"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

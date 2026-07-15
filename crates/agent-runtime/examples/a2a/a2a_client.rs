@@ -20,7 +20,9 @@ use futures::StreamExt;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
-use agent_runtime::{a2a::A2AAgent, error::AgentResult, runtime::Agent, types::agent_meta::AgentMeta};
+use agent_runtime::{
+    a2a::A2AAgent, error::AgentResult, runtime::Agent, types::agent_meta::AgentMeta,
+};
 
 #[tokio::main]
 async fn main() -> AgentResult<()> {

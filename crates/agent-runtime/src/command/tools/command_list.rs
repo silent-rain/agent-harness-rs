@@ -12,7 +12,6 @@
 
 use std::sync::Arc;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -84,18 +83,18 @@ impl Tool for CommandListTool {
     type Args = CommandListArgs;
     type Output = CommandListOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "command_list".to_string(),
-            description: "列出所有已注册的可用命令摘要（名称与来源）。\
+    fn description(&self) -> String {
+        "列出所有已注册的可用命令摘要（名称与来源）。\
                 当需要了解当前可用命令全集时调用此工具，\
                 再通过 command_load 工具加载具体命令的完整内容。"
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {}
-            }),
-        }
+            .to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {}
+        })
     }
 
     async fn call(&self, _args: Self::Args) -> Result<Self::Output, Self::Error> {

@@ -17,7 +17,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use rig_core::{client::CompletionClient, completion::ToolDefinition, providers::openai};
+use rig_core::{client::CompletionClient, providers::openai};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
@@ -166,7 +166,7 @@ impl ContextualTool for DelegateSubAgentTool {
     type Output = DelegateSubAgentOutput;
     type Error = Error;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
+    fn description(&self) -> String {
         let sub_agent_list: Vec<String> = self
             .sub_agents
             .values()
@@ -184,25 +184,24 @@ impl ContextualTool for DelegateSubAgentTool {
             "Delegate a task to a sub-agent. Available sub-agents:\n{}",
             sub_agent_list.join("\n")
         );
+        description
+    }
 
-        ToolDefinition {
-            name: Self::NAME.to_string(),
-            description,
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "sub_agent_name": {
-                        "type": "string",
-                        "description": "Name of the sub-agent to delegate to"
-                    },
-                    "task": {
-                        "type": "string",
-                        "description": "Task description to delegate to the sub-agent"
-                    }
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "sub_agent_name": {
+                    "type": "string",
+                    "description": "Name of the sub-agent to delegate to"
                 },
-                "required": ["sub_agent_name", "task"]
-            }),
-        }
+                "task": {
+                    "type": "string",
+                    "description": "Task description to delegate to the sub-agent"
+                }
+            },
+            "required": ["sub_agent_name", "task"]
+        })
     }
 
     async fn call(
@@ -377,12 +376,11 @@ mod tests {
         let configs = make_bundles();
         let tool_pool = Arc::new(ToolPool::new());
         let tool = DelegateSubAgentTool::new(&configs, tool_pool, RuntimeServices::noop());
-        let def = tool.definition(String::new()).await;
 
-        assert_eq!(def.name, "delegate_sub_agent");
-        assert!(def.description.contains("code-reviewer"));
-        assert!(def.description.contains("doc-writer"));
-        assert!(def.description.contains("Reviews code for quality"));
+        assert_eq!(tool.name(), "delegate_sub_agent");
+        assert!(tool.description().contains("code-reviewer"));
+        assert!(tool.description().contains("doc-writer"));
+        assert!(tool.description().contains("Reviews code for quality"));
     }
 
     #[tokio::test]

@@ -204,7 +204,7 @@ impl ModelCaller {
                 run_id: run_id.to_string(),
                 step,
                 message_count: messages.len(),
-                tool_count: toolset.tool_definitions().await.len(),
+                tool_count: toolset.tool_definitions().len(),
             })
             .await?;
         Ok(())
@@ -371,7 +371,7 @@ impl ModelCaller {
         let chat_history = OneOrMany::many(rig_messages).map_err(|_| {
             Error::ModelCall("消息列表为空，无法构建 CompletionRequest".to_string())
         })?;
-        let tool_definitions = toolset.tool_definitions().await;
+        let tool_definitions = toolset.tool_definitions();
 
         let request = CompletionRequest {
             model: Some(self.agent_config.model_config.model.clone()),

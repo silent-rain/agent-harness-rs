@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use rig_core::completion::ToolDefinition;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -113,8 +112,8 @@ impl ContextualTool for A2aAgentTool {
         &self.tool_name
     }
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        let description = if self.description.is_empty() {
+    fn description(&self) -> String {
+        if self.description.is_empty() {
             format!(
                 "Delegate a task to the remote A2A agent '{}'.",
                 self.agent.name()
@@ -125,22 +124,20 @@ impl ContextualTool for A2aAgentTool {
                 self.agent.name(),
                 self.description
             )
-        };
-
-        ToolDefinition {
-            name: self.tool_name.clone(),
-            description,
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "task": {
-                        "type": "string",
-                        "description": "Task description to delegate to this remote A2A agent"
-                    }
-                },
-                "required": ["task"]
-            }),
         }
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "Task description to delegate to this remote A2A agent"
+                }
+            },
+            "required": ["task"]
+        })
     }
 
     async fn call(

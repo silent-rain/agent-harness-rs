@@ -17,7 +17,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -79,23 +78,23 @@ impl Tool for CommandLoadTool {
     type Args = CommandLoadArgs;
     type Output = CommandLoadOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "command_load".to_string(),
-            description: "加载指定命令的完整提示词内容。当用户使用 /<command> 斜杠指令时，\
+    fn description(&self) -> String {
+        "加载指定命令的完整提示词内容。当用户使用 /<command> 斜杠指令时，\
                 调用此工具获取该命令的完整操作指令。"
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "command_name": {
-                        "type": "string",
-                        "description": "要加载的命令名称（即 Commands 列表中的命令标识）"
-                    }
-                },
-                "required": ["command_name"]
-            }),
-        }
+            .to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "command_name": {
+                    "type": "string",
+                    "description": "要加载的命令名称（即 Commands 列表中的命令标识）"
+                }
+            },
+            "required": ["command_name"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

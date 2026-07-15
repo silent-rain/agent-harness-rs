@@ -100,5 +100,7 @@ where
         }
         // Final 仅承载 provider 私有结构，对外只通过 Done 事件汇报结束
         StreamedAssistantContent::Final(_) => None,
+        // Unknown 是 rig 未建模的 provider 原生输出项，仅透传供检查，不进入我们的流
+        StreamedAssistantContent::Unknown(_) => None,
     }
 }

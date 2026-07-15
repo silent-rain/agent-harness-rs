@@ -13,7 +13,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -105,24 +104,24 @@ impl Tool for SkillListDocsTool {
     type Args = SkillListDocsArgs;
     type Output = SkillListDocsOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "skill_list_docs".to_string(),
-            description: "列出指定技能下所有可用的资源文档和文件。\
+    fn description(&self) -> String {
+        "列出指定技能下所有可用的资源文档和文件。\
                 在调用 skill_load 加载技能后，可通过此工具查看该技能目录下的完整文档列表，\
                 再通过 skill_select_docs 读取具体文档内容。"
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "skill_code": {
-                        "type": "string",
-                        "description": "技能编码（即 Skills 列表中的技能标识）"
-                    }
-                },
-                "required": ["skill_code"]
-            }),
-        }
+            .to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "skill_code": {
+                    "type": "string",
+                    "description": "技能编码（即 Skills 列表中的技能标识）"
+                }
+            },
+            "required": ["skill_code"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

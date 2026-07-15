@@ -275,7 +275,7 @@ mod tests {
         let set = pool.into_contextual_toolset();
         assert!(set.contains("read_file"));
         assert!(set.contains("list_dir"));
-        let defs = set.tool_definitions().await;
+        let defs = set.tool_definitions();
         assert_eq!(defs.len(), 2);
     }
 

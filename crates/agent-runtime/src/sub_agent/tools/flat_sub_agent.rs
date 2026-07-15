@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use rig_core::{client::CompletionClient, completion::ToolDefinition, providers::openai};
+use rig_core::{client::CompletionClient, providers::openai};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
@@ -171,31 +171,29 @@ impl ContextualTool for FlatSubAgentTool {
         &self.tool_name
     }
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
+    fn description(&self) -> String {
         let def = &self.bundle.agent_definition;
-        let description = if def.description.is_empty() {
+        if def.description.is_empty() {
             format!("Delegate a task to the '{}' sub-agent.", def.name)
         } else {
             format!(
                 "Delegate a task to the '{}' sub-agent: {}",
                 def.name, def.description
             )
-        };
-
-        ToolDefinition {
-            name: self.tool_name.clone(),
-            description,
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "task": {
-                        "type": "string",
-                        "description": "Task description to delegate to this sub-agent"
-                    }
-                },
-                "required": ["task"]
-            }),
         }
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "Task description to delegate to this sub-agent"
+                }
+            },
+            "required": ["task"]
+        })
     }
 
     async fn call(
@@ -357,11 +355,10 @@ mod tests {
         let tool_pool = Arc::new(ToolPool::new());
         let bundle = make_bundle("code-reviewer", "Reviews code for quality");
         let tool = FlatSubAgentTool::new(bundle, tool_pool, RuntimeServices::noop());
-        let def = tool.definition(String::new()).await;
 
-        assert_eq!(def.name, "sub_agent_code-reviewer");
-        assert!(def.description.contains("code-reviewer"));
-        assert!(def.description.contains("Reviews code for quality"));
+        assert_eq!(tool.name(), "sub_agent_code-reviewer");
+        assert!(tool.description().contains("code-reviewer"));
+        assert!(tool.description().contains("Reviews code for quality"));
     }
 
     #[tokio::test]
@@ -369,10 +366,9 @@ mod tests {
         let tool_pool = Arc::new(ToolPool::new());
         let bundle = make_bundle("helper", "");
         let tool = FlatSubAgentTool::new(bundle, tool_pool, RuntimeServices::noop());
-        let def = tool.definition(String::new()).await;
 
-        assert_eq!(def.name, "sub_agent_helper");
-        assert!(def.description.contains("helper"));
-        assert!(def.description.contains("Delegate a task"));
+        assert_eq!(tool.name(), "sub_agent_helper");
+        assert!(tool.description().contains("helper"));
+        assert!(tool.description().contains("Delegate a task"));
     }
 }

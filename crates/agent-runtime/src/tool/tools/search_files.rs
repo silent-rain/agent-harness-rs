@@ -3,7 +3,6 @@
 //! 在指定目录中按文件名模式搜索文件。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -41,29 +40,29 @@ impl Tool for SearchFilesTool {
     type Args = SearchFilesArgs;
     type Output = SearchFilesOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "search_files".to_string(),
-            description: "在指定目录中递归搜索匹配名称模式的文件。".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "directory": {
-                        "type": "string",
-                        "description": "搜索根目录路径"
-                    },
-                    "pattern": {
-                        "type": "string",
-                        "description": "文件名搜索关键词（支持部分匹配）"
-                    },
-                    "max_results": {
-                        "type": "integer",
-                        "description": "最大返回数量（默认 50）"
-                    }
+    fn description(&self) -> String {
+        "在指定目录中递归搜索匹配名称模式的文件。".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "directory": {
+                    "type": "string",
+                    "description": "搜索根目录路径"
                 },
-                "required": ["directory", "pattern"]
-            }),
-        }
+                "pattern": {
+                    "type": "string",
+                    "description": "文件名搜索关键词（支持部分匹配）"
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "最大返回数量（默认 50）"
+                }
+            },
+            "required": ["directory", "pattern"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

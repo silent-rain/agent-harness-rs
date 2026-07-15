@@ -25,7 +25,6 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -158,51 +157,51 @@ impl Tool for SkillExecTool {
     type Args = SkillExecArgs;
     type Output = SkillExecOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "skill_exec".to_string(),
-            description: "在指定技能的工作目录下执行脚本，并按通配符收集输出文件内容。\
+    fn description(&self) -> String {
+        "在指定技能的工作目录下执行脚本，并按通配符收集输出文件内容。\
                 脚本路径相对于 skill 目录（如 `assets/run.sh`）。\
                 执行完成后可通过 output_patterns 指定 glob 模式收集生成的文件，\
                 工具会自动读取文件内容并推断 MIME 类型后回传。"
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "skill_code": {
-                        "type": "string",
-                        "description": "技能编码（即 Skills 列表中的技能标识）"
-                    },
-                    "script": {
-                        "type": "string",
-                        "description": "要执行的脚本路径（相对于 skill 目录，如 \"assets/run.sh\"）"
-                    },
-                    "args": {
-                        "type": "array",
-                        "items": { "type": "string" },
-                        "description": "传递给脚本的参数列表（可选）"
-                    },
-                    "output_patterns": {
-                        "type": "array",
-                        "items": { "type": "string" },
-                        "description": "执行后按通配符收集输出文件的模式列表（可选，如 [\"output/*.json\", \"*.patch\"]）"
-                    },
-                    "env": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "key": { "type": "string" },
-                                "value": { "type": "string" }
-                            },
-                            "required": ["key", "value"]
-                        },
-                        "description": "注入到脚本进程的环境变量（可选）"
-                    }
+            .to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "skill_code": {
+                    "type": "string",
+                    "description": "技能编码（即 Skills 列表中的技能标识）"
                 },
-                "required": ["skill_code", "script"]
-            }),
-        }
+                "script": {
+                    "type": "string",
+                    "description": "要执行的脚本路径（相对于 skill 目录，如 \"assets/run.sh\"）"
+                },
+                "args": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "传递给脚本的参数列表（可选）"
+                },
+                "output_patterns": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "执行后按通配符收集输出文件的模式列表（可选，如 [\"output/*.json\", \"*.patch\"]）"
+                },
+                "env": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "key": { "type": "string" },
+                            "value": { "type": "string" }
+                        },
+                        "required": ["key", "value"]
+                    },
+                    "description": "注入到脚本进程的环境变量（可选）"
+                }
+            },
+            "required": ["skill_code", "script"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

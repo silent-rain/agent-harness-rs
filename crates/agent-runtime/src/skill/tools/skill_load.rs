@@ -13,7 +13,6 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -111,24 +110,24 @@ impl Tool for SkillLoadTool {
     type Args = SkillLoadArgs;
     type Output = SkillLoadOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "skill_load".to_string(),
-            description: "加载指定技能的完整指令。当用户需求匹配某个技能时调用此工具，\
+    fn description(&self) -> String {
+        "加载指定技能的完整指令。当用户需求匹配某个技能时调用此工具，\
                 获取该技能的完整操作指令和可用资源文件列表。\
                 加载后可通过 skill_list_docs 查看文档列表，通过 skill_select_docs 读取具体文档内容。"
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "skill_code": {
-                        "type": "string",
-                        "description": "要加载的技能编码（即 Skills 列表中的技能标识）"
-                    }
-                },
-                "required": ["skill_code"]
-            }),
-        }
+                .to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "skill_code": {
+                    "type": "string",
+                    "description": "要加载的技能编码（即 Skills 列表中的技能标识）"
+                }
+            },
+            "required": ["skill_code"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

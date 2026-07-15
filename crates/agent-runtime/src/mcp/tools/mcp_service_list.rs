@@ -2,7 +2,6 @@
 //!
 //! 列出当前所有已连接的 MCP 服务，返回每个服务的名称、传输类型和可用工具数量。
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -49,16 +48,16 @@ impl Tool for McpServiceListTool {
     type Args = McpServiceListArgs;
     type Output = McpServiceListOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "mcp_service_list".to_string(),
-            description: "List all currently connected MCP services, including their names, transport types, and available tool counts.".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        }
+    fn description(&self) -> String {
+        "List all currently connected MCP services, including their names, transport types, and available tool counts.".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {},
+            "required": []
+        })
     }
 
     async fn call(&self, _args: Self::Args) -> Result<Self::Output, Self::Error> {

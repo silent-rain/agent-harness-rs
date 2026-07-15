@@ -104,8 +104,15 @@ pub trait ContextualTool: Send + Sync + 'static {
         Self::NAME
     }
 
-    /// OpenAI-compatible tool schema for LLM function calling.
-    async fn definition(&self, prompt: String) -> ToolDefinition;
+    /// Human-readable tool description surfaced to the LLM.
+    ///
+    /// Mirrors `rig_core::tool::Tool::description`.
+    fn description(&self) -> String;
+
+    /// OpenAI-compatible JSON schema for the tool's arguments.
+    ///
+    /// Mirrors `rig_core::tool::Tool::parameters`.
+    fn parameters(&self) -> serde_json::Value;
 
     /// Execute the tool with the given runtime context and structured arguments.
     ///
@@ -132,8 +139,11 @@ pub trait ContextualToolDyn: Send + Sync {
     /// Returns the tool name used for runtime dispatch.
     fn name(&self) -> &str;
 
-    /// Returns the OpenAI-compatible tool schema.
-    async fn definition(&self, prompt: String) -> ToolDefinition;
+    /// Human-readable tool description surfaced to the LLM.
+    fn description(&self) -> String;
+
+    /// OpenAI-compatible JSON schema for the tool's arguments.
+    fn parameters(&self) -> serde_json::Value;
 
     /// Calls the tool with the JSON-encoded arguments produced by the LLM
     /// and returns the JSON-encoded tool result fed back into the next
@@ -147,8 +157,12 @@ impl<T: ContextualTool> ContextualToolDyn for T {
         self.name()
     }
 
-    async fn definition(&self, prompt: String) -> ToolDefinition {
-        self.definition(prompt).await
+    fn description(&self) -> String {
+        self.description()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        self.parameters()
     }
 
     async fn call(&self, ctx: ToolCallCtx<'_>, args_json: &str) -> Result<String, Error> {
@@ -199,11 +213,12 @@ impl ContextualToolDyn for RigToolWrapper {
         &self.name
     }
 
-    async fn definition(&self, prompt: String) -> ToolDefinition {
-        // Rig's `definition` takes a prompt argument that is unused by every
-        // existing built-in / MCP tool; pass an empty string for parity with
-        // `rig::ToolSet::get_tool_definitions`.
-        self.inner.definition(prompt).await
+    fn description(&self) -> String {
+        self.inner.description()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        self.inner.parameters()
     }
 
     async fn call(&self, _ctx: ToolCallCtx<'_>, args_json: &str) -> Result<String, Error> {
@@ -258,10 +273,14 @@ impl ContextualToolSet {
 
     /// Return every registered tool's [`ToolDefinition`], suitable for LLM
     /// function-calling. Order is unspecified.
-    pub async fn tool_definitions(&self) -> Vec<ToolDefinition> {
+    pub fn tool_definitions(&self) -> Vec<ToolDefinition> {
         let mut defs = Vec::with_capacity(self.tools.len());
         for tool in self.tools.values() {
-            defs.push(tool.definition(String::new()).await);
+            defs.push(ToolDefinition {
+                name: tool.name().to_string(),
+                description: tool.description(),
+                parameters: tool.parameters(),
+            });
         }
         defs
     }
@@ -329,12 +348,12 @@ mod tests {
         type Output = EchoArgs;
         type Error = Error;
 
-        async fn definition(&self, _prompt: String) -> ToolDefinition {
-            ToolDefinition {
-                name: Self::NAME.to_string(),
-                description: "Echo back the arguments JSON".to_string(),
-                parameters: json!({"type": "object"}),
-            }
+        fn description(&self) -> String {
+            "Echo back the arguments JSON".to_string()
+        }
+
+        fn parameters(&self) -> serde_json::Value {
+            json!({"type": "object"})
         }
 
         async fn call(
@@ -430,7 +449,7 @@ mod tests {
         let stateless: Arc<dyn ToolDyn> = Arc::new(ReadFileTool);
         set.register(Arc::new(RigToolWrapper::new(stateless)));
 
-        let defs = set.tool_definitions().await;
+        let defs = set.tool_definitions();
         let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
         assert!(names.contains(&"read_file"));
     }
@@ -442,7 +461,7 @@ mod tests {
         let stateless: Arc<dyn ToolDyn> = Arc::new(ReadFileTool);
         set.register(Arc::new(RigToolWrapper::new(stateless)));
 
-        let defs = set.tool_definitions().await;
+        let defs = set.tool_definitions();
         let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
         assert!(names.contains(&"read_file"));
         assert!(names.contains(&"echo_ctx"));

@@ -3,7 +3,6 @@
 //! 查询指定的知识库，获取相关信息。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -51,32 +50,32 @@ impl Tool for KnowledgeQueryTool {
     type Args = KnowledgeQueryArgs;
     type Output = KnowledgeQueryOutput;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        ToolDefinition {
-            name: "query_knowledge".to_string(),
-            description: "查询指定的知识库，获取相关信息。".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "kb_ids": {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        },
-                        "description": "知识库 ID 列表（空表示使用所有绑定知识库）"
+    fn description(&self) -> String {
+        "查询指定的知识库，获取相关信息。".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "kb_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
                     },
-                    "query": {
-                        "type": "string",
-                        "description": "检索查询"
-                    },
-                    "top_k": {
-                        "type": "integer",
-                        "description": "最大返回数量（可选）"
-                    }
+                    "description": "知识库 ID 列表（空表示使用所有绑定知识库）"
                 },
-                "required": ["query"]
-            }),
-        }
+                "query": {
+                    "type": "string",
+                    "description": "检索查询"
+                },
+                "top_k": {
+                    "type": "integer",
+                    "description": "最大返回数量（可选）"
+                }
+            },
+            "required": ["query"]
+        })
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
