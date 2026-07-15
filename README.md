@@ -1,5 +1,7 @@
 # Agent Harness
 
+> ⚠️ **说明**：本项目为 **AI 辅助开发** 项目，主要由 AI 编程工具在人工指导下生成与维护，代码风格与结构可能带有较强的自动化痕迹。
+
 **Harness Engineering Agent** — 智能体基座工程，包含构建、装配与运行 AI Agent 的完整基础设施。
 
 ## 概述
@@ -32,6 +34,10 @@ agent-harness-rs/
 |                    | `core/inject`    | 基于 `nject` 的依赖注入 Provider，管理数据库连接与服务装配                |
 | **运行时内核**     | `agent-runtime`     | 定义智能体核心抽象与执行引擎：Runtime、Planner、Executor、Streaming、Hook |
 | **装配层**         | `agent-assembly` | 从数据库/配置源加载资源，组装 `AgentBundle`，构建可运行的 Agent 实例      |
+
+> ⚠️ **已知缺口**：`agent-assembly` 的**多智能体（Multi-Agent）装配能力尚不完善**。
+> 当前 `DbSubAgentLoader` 仅能加载单层子智能体的能力绑定（`sub_agent_bundles` 固定为空，不递归装配嵌套子智能体），
+> 而 `Chain / Parallel / Steerable` 等组合编排模式主要依赖 `agent-runtime` 运行时的支持，**装配层尚未完整打通多智能体的组装与编排链路**，使用前请留意。
 | **服务层**         | `agent-service`  | 对外 HTTP/SSE 接口，提供 Agent CRUD、运行、会话管理等 API                 |
 
 ## 依赖关系
