@@ -728,8 +728,8 @@ registry.connect_service("my-service").await?;
 
 ```rust
 use std::sync::Arc;
-use agent_base::{AgentRuntime, RuntimeServices, NoopEventPublisher};
-use agent_base::model::ModelAdapter;
+use agent_runtime::{AgentRuntime, RuntimeServices, NoopEventPublisher};
+use agent_runtime::model::ModelAdapter;
 
 let model: Arc<dyn ModelAdapter> = Arc::new(openai_model);
 
@@ -748,8 +748,8 @@ let answer = runtime.run("session-1", "你好", 12345).await?;
 ### 示例 2：注入额外自定义工具
 
 ```rust
-use agent_base::{AgentRuntime, RuntimeServices};
-use agent_base::tools::ToolRegistry;
+use agent_runtime::{AgentRuntime, RuntimeServices};
+use agent_runtime::tools::ToolRegistry;
 
 // 自定义工具也需要在 snapshot.tool_configs 中有对应的 tool_code
 let extra = ToolRegistry::new().add_tool(CalculatorTool);
@@ -776,7 +776,7 @@ let answer = runtime.run("session-1", "你好", user_id).await?;
 ### 示例 4：带完整平台能力的智能体
 
 ```rust
-use agent_base::{AgentRuntime, RuntimeServices};
+use agent_runtime::{AgentRuntime, RuntimeServices};
 
 let services = RuntimeServices {
     memory_writer: Arc::new(db_memory_writer),
@@ -797,8 +797,8 @@ let answer = runtime.run("session-1", "分析这段代码", user_id).await?;
 ### 示例 5：通过便捷 API 注入子智能体（DelegateSubAgentTool 新路径）
 
 ```rust
-use agent_base::{AgentRuntime, RuntimeServices, NoopEventPublisher};
-use agent_base::types::sub_agent::{SubAgentConfig, SubAgentSource};
+use agent_runtime::{AgentRuntime, RuntimeServices, NoopEventPublisher};
+use agent_runtime::types::sub_agent::{SubAgentConfig, SubAgentSource};
 
 let sub_agents = vec![SubAgentConfig {
     name: "code-reviewer".to_string(),
@@ -829,7 +829,7 @@ let runtime = AgentRuntime::builder(snapshot, model, publisher, services)
 ### 示例 7：通过底层 API 注入预配置的 SubAgentRegistry
 
 ```rust
-use agent_base::sub_agent::SubAgentRegistry;
+use agent_runtime::sub_agent::SubAgentRegistry;
 
 let mut registry = SubAgentRegistry::new(".codebuddy/agents")
     .with_local_scan(true);

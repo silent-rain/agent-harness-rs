@@ -29,9 +29,9 @@ use crate::{
 ///
 /// ```rust,no_run
 /// use std::sync::Arc;
-/// use agent_base::error::AgentResult;
-/// use agent_base::runtime::{Agent, ParallelAgent};
-/// use agent_base::session::RunOutcome;
+/// use agent_runtime::error::AgentResult;
+/// use agent_runtime::runtime::{Agent, ParallelAgent};
+/// use agent_runtime::session::RunOutcome;
 ///
 /// struct ReviewAgent { name: String }
 ///

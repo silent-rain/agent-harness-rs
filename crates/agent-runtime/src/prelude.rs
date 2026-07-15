@@ -3,7 +3,7 @@
 //! 统一导出 `agent-runtime` 中最常用的类型，方便使用者一次性导入：
 //!
 //! ```rust,no_run
-//! use agent_base::prelude::*;
+//! use agent_runtime::prelude::*;
 //! ```
 //!
 //! 包含：

@@ -62,7 +62,7 @@
 use std::env;
 use std::sync::Arc;
 
-use agent_base::{
+use agent_runtime::{
     a2a::A2aServer,
     error::AgentResult,
     runtime::AgentBuilder,
@@ -83,7 +83,7 @@ const DEFAULT_PROVIDER: &str = "openai";
 
 fn load_model_config() -> AgentResult<ModelConfig> {
     let api_key = env::var(ENV_API_KEY).map_err(|_| {
-        agent_base::Error::ModelCall(format!(
+        agent_runtime::Error::ModelCall(format!(
             "missing env `{ENV_API_KEY}`: please configure it in `.env`"
         ))
     })?;

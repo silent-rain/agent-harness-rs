@@ -88,9 +88,9 @@ pub struct McpConnection {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::mcp::{LocalMcpLoader, McpRegistry};
+/// use agent_runtime::mcp::{LocalMcpLoader, McpRegistry};
 ///
-/// # async fn example() -> agent_base::error::AgentResult<()> {
+/// # async fn example() -> agent_runtime::error::AgentResult<()> {
 /// // Load configs from local file
 /// let configs = LocalMcpLoader::default().load().await?;
 ///

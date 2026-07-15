@@ -33,9 +33,9 @@ use crate::{
 ///
 /// ```rust,no_run
 /// use std::sync::Arc;
-/// use agent_base::error::AgentResult;
-/// use agent_base::hook::{AgentHook, HookRegistry};
-/// use agent_base::types::hook::{BeforeAgentArgs, BeforeAgentResult};
+/// use agent_runtime::error::AgentResult;
+/// use agent_runtime::hook::{AgentHook, HookRegistry};
+/// use agent_runtime::types::hook::{BeforeAgentArgs, BeforeAgentResult};
 ///
 /// struct MyHook;
 ///

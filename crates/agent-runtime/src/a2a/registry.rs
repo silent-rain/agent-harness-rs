@@ -65,10 +65,10 @@ pub struct A2aConnection {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::a2a::A2aRegistry;
-/// use agent_base::types::a2a::A2aServiceConfig;
+/// use agent_runtime::a2a::A2aRegistry;
+/// use agent_runtime::types::a2a::A2aServiceConfig;
 ///
-/// # async fn example() -> agent_base::error::AgentResult<()> {
+/// # async fn example() -> agent_runtime::error::AgentResult<()> {
 /// let config = A2aServiceConfig {
 ///     service_name: "weather_agent".to_string(),
 ///     description: "Query weather information".to_string(),

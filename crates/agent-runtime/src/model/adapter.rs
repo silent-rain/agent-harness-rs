@@ -29,7 +29,7 @@ use crate::{
 ///
 /// ```rust,no_run
 /// use std::sync::Arc;
-/// use agent_base::model::ModelAdapter;
+/// use agent_runtime::model::ModelAdapter;
 ///
 /// // 任何 rig CompletionModel 自动实现 ModelAdapter
 /// // let model = openai::Client::from_env().completion_model("gpt-4o");

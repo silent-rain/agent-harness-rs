@@ -105,14 +105,14 @@ use crate::{
 ///
 /// ```rust,no_run
 /// # use std::sync::Arc;
-/// # use agent_base::{Agent, RuntimeServices};
-/// # use agent_base::AgentBuilder;
-/// # use agent_base::runtime::LocalAgentSource;
-/// # use agent_base::model::ModelAdapter;
-/// # use agent_base::tool::{ToolPool, ReadFileTool};
-/// # use agent_base::types::runtime::AgentConfig;
+/// # use agent_runtime::{Agent, RuntimeServices};
+/// # use agent_runtime::AgentBuilder;
+/// # use agent_runtime::runtime::LocalAgentSource;
+/// # use agent_runtime::model::ModelAdapter;
+/// # use agent_runtime::tool::{ToolPool, ReadFileTool};
+/// # use agent_runtime::types::runtime::AgentConfig;
 /// # async fn example(model: Arc<dyn ModelAdapter>, agent_config: AgentConfig)
-/// #     -> agent_base::error::AgentResult<()> {
+/// #     -> agent_runtime::error::AgentResult<()> {
 /// // Scenario A: identity-only seed; capabilities injected via source
 /// let agent = AgentBuilder::new(agent_config.clone())?
 ///     .add_source(LocalAgentSource::default().with_all_enabled())

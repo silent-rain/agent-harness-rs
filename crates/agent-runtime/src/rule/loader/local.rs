@@ -29,7 +29,7 @@ use crate::{
 /// ## 使用示例
 ///
 /// ```rust,no_run
-/// use agent_base::rule::LocalRuleLoader;
+/// use agent_runtime::rule::LocalRuleLoader;
 ///
 /// # async fn example() -> anyhow::Result<()> {
 /// let loader = LocalRuleLoader::new(".codebuddy/rules");
@@ -190,7 +190,7 @@ impl LocalRuleLoader {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use agent_base::rule::LocalRuleLoader;
+    /// use agent_runtime::rule::LocalRuleLoader;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let rules = LocalRuleLoader::from_dirs([

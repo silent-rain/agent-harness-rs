@@ -37,8 +37,8 @@ const OBJECT_CHUNK: &str = "chat.completion.chunk";
 /// # Examples
 ///
 /// ```
-/// use agent_base::openai::OpenAIRawStreamAdapter;
-/// use agent_base::session::AgentStreamEvent;
+/// use agent_runtime::openai::OpenAIRawStreamAdapter;
+/// use agent_runtime::session::AgentStreamEvent;
 ///
 /// let mut adapter = OpenAIRawStreamAdapter::new("session-1", "gpt-4");
 /// let chunks = adapter.translate(AgentStreamEvent::TextDelta {

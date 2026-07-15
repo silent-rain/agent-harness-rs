@@ -15,7 +15,7 @@ use nject::injectable;
 use uuid::Uuid;
 
 use agent_assembly::{DbAgentSource, DbSessionService};
-use agent_base::{
+use agent_runtime::{
     Agent, AgentBuilder, AgentOpenAI, LlmAgent, RuntimeServices, runtime::AgentSource,
     session::RunOutcome, tool::simple_tools::all_builtin_tools, types::runtime::AgentConfig,
 };
@@ -51,7 +51,7 @@ impl AgentRunService {
         &self,
         user_id: i64,
         req: AgentRunReq,
-    ) -> anyhow::Result<agent_base::openai::ChatCompletion> {
+    ) -> anyhow::Result<agent_runtime::openai::ChatCompletion> {
         let session_id = req
             .session_id
             .clone()
@@ -175,7 +175,7 @@ impl AgentRunService {
     pub async fn run_with_config(
         &self,
         req: AgentConfigRunReq,
-    ) -> anyhow::Result<agent_base::openai::ChatCompletion> {
+    ) -> anyhow::Result<agent_runtime::openai::ChatCompletion> {
         let session_id = req
             .session_id
             .clone()

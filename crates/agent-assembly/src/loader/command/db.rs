@@ -1,7 +1,7 @@
 //! 基于数据库的命令加载器
 //!
 //! 从 `t_agent_command_rel` 与 `t_agent_command_registry` 装配指定智能体启用的命令列表。
-//! 与 `agent_base::command::loader::LocalCommandLoader` 形成对称实现：
+//! 与 `agent_runtime::command::loader::LocalCommandLoader` 形成对称实现：
 //! 前者属于装配层（依赖 SeaORM），后者属于核心运行时（零外部存储依赖）。
 //!
 //! 提供的主要内容：
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
-use agent_base::types::command::{CommandConfig, CommandSource};
+use agent_runtime::types::command::{CommandConfig, CommandSource};
 use entity::agent::{command_registry, command_rel};
 
 use crate::error::PlatformResult;

@@ -255,7 +255,7 @@ impl LlmAgent {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use agent_base::LlmAgent;
+    /// use agent_runtime::LlmAgent;
     ///
     /// // AgentBuilder::build() 返回 LlmAgent，可链式调用 with_system_prompt
     /// fn configure(agent: LlmAgent) -> LlmAgent {
@@ -310,7 +310,7 @@ impl LlmAgent {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use agent_base::{LlmAgent, types::agent_meta::AgentMeta};
+    /// use agent_runtime::{LlmAgent, types::agent_meta::AgentMeta};
     ///
     /// fn configure_sub_agent(agent: LlmAgent, parent_run_id: String) -> LlmAgent {
     ///     agent.with_meta(AgentMeta::sub_agent(parent_run_id, 1, "sess-1".into()))

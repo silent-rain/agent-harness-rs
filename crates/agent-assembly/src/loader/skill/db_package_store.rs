@@ -23,7 +23,7 @@ use sea_orm::{
     Set, TransactionTrait,
 };
 
-use agent_base::{
+use agent_runtime::{
     error::SkillError,
     skill::installer::{
         SkillCheckResult, SkillPackage, SkillPackageMeta, SkillPackageRecord, SkillPackageStore,
@@ -35,7 +35,7 @@ use entity::agent::{skill_package, skill_rel};
 /// SeaORM 版 [`SkillPackageStore`] 实现
 ///
 /// 线上部署时通过 [`DbSkillPackageStore::new`] 构造一个共享实例，
-/// 注入给 [`agent_base::skill::installer::DbInstaller`] 使用。
+/// 注入给 [`agent_runtime::skill::installer::DbInstaller`] 使用。
 pub struct DbSkillPackageStore {
     db: DatabaseConnection,
 }

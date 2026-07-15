@@ -84,7 +84,7 @@ use crate::{
 /// ## 使用示例
 ///
 /// ```rust,no_run
-/// use agent_base::sub_agent::LocalSubAgentLoader;
+/// use agent_runtime::sub_agent::LocalSubAgentLoader;
 ///
 /// # async fn example() -> anyhow::Result<()> {
 /// let loader = LocalSubAgentLoader::new(".codebuddy/agents");

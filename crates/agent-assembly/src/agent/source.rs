@@ -1,22 +1,22 @@
 //! 数据库驱动的智能体配置来源
 //!
-//! 提供 [`DbAgentSource`]：实现 [`agent_base::runtime::AgentSource`]，从数据库
+//! 提供 [`DbAgentSource`]：实现 [`agent_runtime::runtime::AgentSource`]，从数据库
 //! 一次性加载完整的 [`AgentBundle`] 并喂给 [`AgentBuilder`]。
 //!
 //! 配套提供：
 //! - [`AgentSummary`] —— 装配产物的能力摘要
 //!
-//! [`AgentBuilder`]: agent_base::runtime::AgentBuilder
-//! [`AgentBundle`]: agent_base::types::runtime::AgentBundle
-//! [`ModelAdapter`]: agent_base::model::ModelAdapter
-//! [`RuntimeServices`]: agent_base::runtime::RuntimeServices
+//! [`AgentBuilder`]: agent_runtime::runtime::AgentBuilder
+//! [`AgentBundle`]: agent_runtime::types::runtime::AgentBundle
+//! [`ModelAdapter`]: agent_runtime::model::ModelAdapter
+//! [`RuntimeServices`]: agent_runtime::runtime::RuntimeServices
 //! [`DbSessionService`]: crate::session::DbSessionService
 
 use async_trait::async_trait;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use tracing::debug;
 
-use agent_base::{
+use agent_runtime::{
     error::AgentResult,
     runtime::AgentSource,
     types::{
@@ -105,7 +105,7 @@ impl AgentSummary {
 /// # use std::sync::Arc;
 /// # use sea_orm::DatabaseConnection;
 /// # async fn example(db: DatabaseConnection) -> agent_assembly::PlatformResult<()> {
-/// use agent_base::{
+/// use agent_runtime::{
 ///     model::create_model,
 ///     runtime::{AgentBuilder, AgentSource},
 ///     RuntimeServices,
@@ -301,6 +301,6 @@ impl AgentSource for DbAgentSource {
     async fn load(&self) -> AgentResult<AgentBundle> {
         self.load_bundle()
             .await
-            .map_err(|e| agent_base::Error::Internal(e.to_string()))
+            .map_err(|e| agent_runtime::Error::Internal(e.to_string()))
     }
 }

@@ -19,7 +19,7 @@
 //! - [`a2a`] - A2A（Agent-to-Agent）协议支持（`feature = "a2a"` 时启用）
 //!   - `A2aServer`：将本地 Agent 一键暴露为 A2A v1.0 服务
 //!   - `A2AAgent`：将远程 A2A 服务透明代理为本地 Agent（实现 `Agent` trait）
-//! - [`prelude`] - SDK 常用类型的一键导入（`use agent_base::prelude::*;`）
+//! - [`prelude`] - SDK 常用类型的一键导入（`use agent_runtime::prelude::*;`）
 //!
 //! ## 设计原则
 //!

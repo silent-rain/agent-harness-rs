@@ -66,7 +66,7 @@ full = ["command", "rule", "skill", "sub_agent", "mcp", "a2a"]
 
 ```rust
 use std::env;
-use agent_base::{
+use agent_runtime::{
     runtime::{Agent, AgentBuilder},
     types::runtime::{AgentConfig, AgentDefinition, ModelConfig},
 };
@@ -100,7 +100,7 @@ async fn main() -> anyhow::Result<()> {
 ### 流式输出
 
 ```rust
-use agent_base::session::AgentStreamEvent;
+use agent_runtime::session::AgentStreamEvent;
 use futures::StreamExt;
 
 let mut stream = agent.run_stream("session-1", "Tell me a story")?;
@@ -115,7 +115,7 @@ while let Some(event) = stream.next().await {
 
 ```rust
 use std::sync::Arc;
-use agent_base::{a2a::A2aServer, runtime::Agent};
+use agent_runtime::{a2a::A2aServer, runtime::Agent};
 
 // 一行启动，自动生成 AgentCard
 A2aServer::new(Arc::new(agent), bundle)
@@ -126,7 +126,7 @@ A2aServer::new(Arc::new(agent), bundle)
 ### A2AAgent：像本地 Agent 一样调用远程服务（`feature = "a2a"`）
 
 ```rust
-use agent_base::{a2a::A2AAgent, runtime::Agent};
+use agent_runtime::{a2a::A2AAgent, runtime::Agent};
 
 // 自动发现 AgentCard，一行连接
 let remote = A2AAgent::connect("http://remote-agent:3000").await?;

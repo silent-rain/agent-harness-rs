@@ -29,7 +29,7 @@ use crate::{
 /// ## 使用示例
 ///
 /// ```rust,no_run
-/// use agent_base::command::LocalCommandLoader;
+/// use agent_runtime::command::LocalCommandLoader;
 ///
 /// # async fn example() -> anyhow::Result<()> {
 /// let loader = LocalCommandLoader::new(".codebuddy/commands");
@@ -194,7 +194,7 @@ impl LocalCommandLoader {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use agent_base::command::LocalCommandLoader;
+    /// use agent_runtime::command::LocalCommandLoader;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let commands = LocalCommandLoader::from_dirs([

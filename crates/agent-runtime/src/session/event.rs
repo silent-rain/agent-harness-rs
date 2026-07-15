@@ -184,7 +184,7 @@ impl AgentStreamEvent {
     /// # Examples
     ///
     /// ```
-    /// use agent_base::session::AgentStreamEvent;
+    /// use agent_runtime::session::AgentStreamEvent;
     ///
     /// let event = AgentStreamEvent::UserMessage {
     ///     run_id: "r-1".into(),
@@ -218,7 +218,7 @@ impl AgentStreamEvent {
     /// # Examples
     ///
     /// ```
-    /// use agent_base::session::AgentStreamEvent;
+    /// use agent_runtime::session::AgentStreamEvent;
     ///
     /// let event = AgentStreamEvent::TextDelta {
     ///     run_id: "r-123".into(),

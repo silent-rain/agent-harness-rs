@@ -16,7 +16,7 @@
 //!
 //! ```rust,no_run
 //! use agent_assembly::DbAgentSource;
-//! use agent_base::runtime::AgentSource;
+//! use agent_runtime::runtime::AgentSource;
 //!
 //! // 1. 构建数据库源
 //! // let source = DbAgentSource::new(db, agent_id, user_id);
@@ -42,7 +42,7 @@ pub use session::{
 };
 
 // 重导出 agent-runtime 的核心类型，方便上层直接使用
-pub use agent_base::{
+pub use agent_runtime::{
     Agent, ModelAdapter, RuntimeServices,
     types::runtime::{AgentBundle, AgentConfig},
 };

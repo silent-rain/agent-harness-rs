@@ -4,7 +4,7 @@
 //! / `t_agent_session_user_state` / `t_agent_session_agent_state` /
 //! `t_agent_session_pending_input` 六张核心表的 DAO 封装，
 //! 以及基于这些 DAO 组装的 [`DbSessionService`]，作为
-//! [`agent_base::session::SessionService`] 的数据库实现。
+//! [`agent_runtime::session::SessionService`] 的数据库实现。
 //!
 //! 模块组织：
 //!

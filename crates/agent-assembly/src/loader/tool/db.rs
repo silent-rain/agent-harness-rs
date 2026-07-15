@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
-use agent_base::types::tool::ToolConfig;
+use agent_runtime::types::tool::ToolConfig;
 use entity::agent::{tool_registry, tool_rel};
 
 use crate::error::PlatformResult;

@@ -13,9 +13,9 @@
 //! ### 暴露本地 Agent 为 A2A 服务
 //!
 //! ```rust,no_run
-//! use agent_base::a2a::A2aServer;
+//! use agent_runtime::a2a::A2aServer;
 //!
-//! # async fn example(agent: std::sync::Arc<dyn agent_base::Agent>, bundle: agent_base::types::runtime::AgentBundle) -> anyhow::Result<()> {
+//! # async fn example(agent: std::sync::Arc<dyn agent_runtime::Agent>, bundle: agent_runtime::types::runtime::AgentBundle) -> anyhow::Result<()> {
 //! A2aServer::new(agent, bundle)
 //!     .serve("0.0.0.0:3000")
 //!     .await?;
@@ -26,8 +26,8 @@
 //! ### 调用远程 A2A Agent
 //!
 //! ```rust,no_run
-//! use agent_base::a2a::A2AAgent;
-//! use agent_base::Agent;
+//! use agent_runtime::a2a::A2AAgent;
+//! use agent_runtime::Agent;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! let remote = A2AAgent::connect("http://remote-agent:3000").await?;

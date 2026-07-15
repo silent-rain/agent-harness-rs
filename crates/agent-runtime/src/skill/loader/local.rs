@@ -34,7 +34,7 @@ use crate::{
 /// ## 使用示例
 ///
 /// ```rust,no_run
-/// use agent_base::skill::LocalSkillLoader;
+/// use agent_runtime::skill::LocalSkillLoader;
 ///
 /// # async fn example() -> anyhow::Result<()> {
 /// let loader = LocalSkillLoader::new(".codebuddy/skills");

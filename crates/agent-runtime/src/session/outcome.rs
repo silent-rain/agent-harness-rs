@@ -29,7 +29,7 @@ use super::{AgentStreamEvent, FinishReason};
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::runtime::RunOutcome;
+/// use agent_runtime::runtime::RunOutcome;
 ///
 /// let outcome = RunOutcome::success("最终回答", 3);
 /// assert!(outcome.success);

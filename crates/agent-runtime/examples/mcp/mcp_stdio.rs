@@ -26,7 +26,7 @@
 
 use std::env;
 
-use agent_base::{
+use agent_runtime::{
     error::AgentResult,
     mcp::McpRegistry,
     runtime::{Agent, AgentBuilder},
@@ -57,7 +57,7 @@ const DEFAULT_PROVIDER: &str = "openai";
 /// 从环境变量加载模型配置。
 fn load_model_config() -> AgentResult<ModelConfig> {
     let api_key = env::var(ENV_API_KEY).map_err(|_| {
-        agent_base::Error::ModelCall(format!(
+        agent_runtime::Error::ModelCall(format!(
             "missing env `{ENV_API_KEY}`: please set it in `.env` or shell environment"
         ))
     })?;

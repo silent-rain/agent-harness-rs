@@ -21,7 +21,7 @@ use crate::types::{command::CommandConfig, rule::RuleConfig, skill::SkillConfig}
 /// # Examples
 ///
 /// ```no_run
-/// use agent_base::prompt::SystemPrompt;
+/// use agent_runtime::prompt::SystemPrompt;
 ///
 /// let prompt = SystemPrompt::new()
 ///     .with_base("You are a helpful assistant.")

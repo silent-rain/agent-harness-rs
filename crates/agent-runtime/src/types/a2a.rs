@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// ## 使用示例
 ///
 /// ```rust,no_run
-/// use agent_base::types::a2a::A2aServiceConfig;
+/// use agent_runtime::types::a2a::A2aServiceConfig;
 ///
 /// let config = A2aServiceConfig {
 ///     service_name: "weather_agent".to_string(),

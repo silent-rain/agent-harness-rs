@@ -40,7 +40,7 @@ use futures::StreamExt;
 use sea_orm::DatabaseConnection;
 
 use agent_assembly::{AgentSummary, DbAgentSource, DbSessionService, Error, PlatformResult};
-use agent_base::{
+use agent_runtime::{
     RuntimeServices,
     model::create_model,
     runtime::{AgentBuilder, AgentOpenAI, OpenAIChunkStream},
@@ -128,7 +128,7 @@ fn build_db_runtime_services(db: DatabaseConnection) -> RuntimeServices {
 ///
 /// # 分片语义
 ///
-/// 每个 [`ChatCompletionChunk`](agent_base::openai::ChatCompletionChunk) 对应一次
+/// 每个 [`ChatCompletionChunk`](agent_runtime::openai::ChatCompletionChunk) 对应一次
 /// OpenAI Chat Completions stream 分片，字段含义：
 ///
 /// - `choices[0].delta.content`：本分片携带的文本增量（`TextDelta` 对应的 token）

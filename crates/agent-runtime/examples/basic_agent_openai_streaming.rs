@@ -27,7 +27,7 @@ use std::{
 use dotenv::dotenv;
 use futures::StreamExt;
 
-use agent_base::{
+use agent_runtime::{
     error::AgentResult,
     runtime::{AgentBuilder, AgentOpenAI, OpenAIChunkStream},
     types::{
@@ -71,7 +71,7 @@ const USER_INPUT: &str = "一个女孩在河边散步";
 /// 引导用户检查 `.env` 配置。
 fn load_model_binding_from_env() -> AgentResult<ModelConfig> {
     let api_key = env::var(ENV_API_KEY).map_err(|_| {
-        agent_base::Error::ModelCall(format!(
+        agent_runtime::Error::ModelCall(format!(
             "missing env `{ENV_API_KEY}`: please configure it in `.env` (see `.env.example`)"
         ))
     })?;
@@ -139,7 +139,7 @@ fn create_basic_rules() -> Vec<RuleConfig> {
 ///
 /// # 分片语义
 ///
-/// 每个 [`ChatCompletionChunk`](agent_base::openai::ChatCompletionChunk) 对应一次
+/// 每个 [`ChatCompletionChunk`](agent_runtime::openai::ChatCompletionChunk) 对应一次
 /// OpenAI Chat Completions stream 分片，字段含义：
 ///
 /// - `choices[0].delta.content`：本分片携带的文本增量（`TextDelta` 对应的 token）

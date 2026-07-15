@@ -58,7 +58,7 @@ pub enum MockBehavior {
 ///
 /// ```no_run
 /// use std::sync::Arc;
-/// use agent_base::model::{MockModel, ModelAdapter};
+/// use agent_runtime::model::{MockModel, ModelAdapter};
 ///
 /// // 1. 路径不应触达模型：占位即可
 /// let model: Arc<dyn ModelAdapter> = Arc::new(MockModel::new());

@@ -13,8 +13,8 @@ use super::{DuckDuckGoTool, ListDirTool, ReadFileTool, RunCommandTool, SearchFil
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::tool::{ToolPool, simple_tools::all_builtin_tools};
-/// use agent_base::types::tool::ToolSource;
+/// use agent_runtime::tool::{ToolPool, simple_tools::all_builtin_tools};
+/// use agent_runtime::types::tool::ToolSource;
 ///
 /// let mut pool = ToolPool::new();
 /// pool.register_many(all_builtin_tools(), ToolSource::Builtin);

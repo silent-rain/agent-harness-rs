@@ -65,7 +65,7 @@ cargo run -p agent-assembly --example db_agent_openai_streaming -- --session-id 
 
 ```rust,no_run
 use agent_assembly::DbAgentSource;
-use agent_base::runtime::AgentSource;
+use agent_runtime::runtime::AgentSource;
 
 // 1. 构建数据库源
 let source = DbAgentSource::new(db.clone(), agent_id, user_id);

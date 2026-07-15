@@ -1,6 +1,6 @@
 //! 基于数据库的会话服务实现
 //!
-//! [`DbSessionService`] 实现 [`agent_base::session::SessionService`] trait，
+//! [`DbSessionService`] 实现 [`agent_runtime::session::SessionService`] trait，
 //! 将会话事件流与三层上下文记忆全部持久化到数据库。
 //!
 //! # 设计要点
@@ -26,7 +26,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use sea_orm::DatabaseConnection;
 
-use agent_base::{
+use agent_runtime::{
     error::{AgentResult, Error},
     message::ConversationMessage,
     session::SessionService,

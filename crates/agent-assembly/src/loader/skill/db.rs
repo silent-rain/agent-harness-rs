@@ -1,7 +1,7 @@
 //! 基于数据库的技能加载器
 //!
 //! 从 `t_agent_skill_rel` 与 `t_agent_skill_package` 装配指定智能体启用的技能列表。
-//! 与 `agent_base::skill::loader::LocalSkillLoader` 形成对称实现：
+//! 与 `agent_runtime::skill::loader::LocalSkillLoader` 形成对称实现：
 //! 前者属于装配层（依赖 SeaORM），后者属于核心运行时（零外部存储依赖）。
 //!
 //! 提供的主要内容：
@@ -9,7 +9,7 @@
 
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
-use agent_base::types::skill::SkillConfig;
+use agent_runtime::types::skill::SkillConfig;
 use entity::agent::{skill_package, skill_rel};
 
 use crate::error::PlatformResult;

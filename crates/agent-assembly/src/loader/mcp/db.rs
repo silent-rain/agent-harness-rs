@@ -2,7 +2,7 @@
 //!
 //! 从 `t_agent_mcp_service_rel` JOIN `t_agent_mcp_service_registry` 装配
 //! 指定智能体启用的 MCP 服务配置列表。
-//! 与 `agent_base::mcp::loader::LocalMcpLoader` 形成对称实现：
+//! 与 `agent_runtime::mcp::loader::LocalMcpLoader` 形成对称实现：
 //! 前者属于装配层（依赖 SeaORM），后者属于核心运行时（零外部存储依赖）。
 //!
 //! 提供的主要内容：
@@ -12,7 +12,7 @@ use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, JoinType, QueryFilter, QuerySelect, RelationTrait,
 };
 
-use agent_base::{
+use agent_runtime::{
     types::mcp::{McpServerConfig, McpServersWrapper},
     utils::mcp::infer_transport_type,
 };

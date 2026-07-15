@@ -14,7 +14,7 @@
 
 use std::env;
 
-use agent_base::{
+use agent_runtime::{
     command::LocalCommandLoader,
     error::AgentResult,
     mcp::McpRegistry,
@@ -59,7 +59,7 @@ const DEFAULT_TEMPERATURE: f64 = 0.7;
 /// 引导用户检查 `.env` 配置。
 fn load_model_binding_from_env() -> AgentResult<ModelConfig> {
     let api_key = env::var(ENV_API_KEY).map_err(|_| {
-        agent_base::Error::ModelCall(format!(
+        agent_runtime::Error::ModelCall(format!(
             "missing env `{ENV_API_KEY}`: please configure it in `.env` (see `.env.example`)"
         ))
     })?;

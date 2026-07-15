@@ -1,6 +1,6 @@
 //! agent-assembly 错误类型
 
-use agent_base::error::{Error as AgentError, SkillError};
+use agent_runtime::error::{Error as AgentError, SkillError};
 use thiserror::Error;
 
 /// agent-assembly 错误

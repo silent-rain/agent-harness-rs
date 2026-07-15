@@ -1,6 +1,6 @@
 //! 智能体运行请求/响应数据传输对象
 
-use agent_base::types::runtime::{AgentDefinition, ModelConfig};
+use agent_runtime::types::runtime::{AgentDefinition, ModelConfig};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -84,20 +84,20 @@ pub struct SseEventData {
 
 impl SseEventData {
     /// 从 `AgentStreamEvent` 构建 SSE 事件数据
-    pub fn from_agent_event(event: &agent_base::AgentStreamEvent) -> Self {
+    pub fn from_agent_event(event: &agent_runtime::AgentStreamEvent) -> Self {
         let event_type = match event {
-            agent_base::AgentStreamEvent::RunStarted { .. } => "run_started",
-            agent_base::AgentStreamEvent::StepStarted { .. } => "step_started",
-            agent_base::AgentStreamEvent::Reasoning { .. } => "reasoning",
-            agent_base::AgentStreamEvent::ReasoningDelta { .. } => "reasoning_delta",
-            agent_base::AgentStreamEvent::ToolCallsPlanned { .. } => "tool_calls_planned",
-            agent_base::AgentStreamEvent::ToolCallStarted { .. } => "tool_call_started",
-            agent_base::AgentStreamEvent::ToolCallFinished { .. } => "tool_call_finished",
-            agent_base::AgentStreamEvent::SubAgentEvent { .. } => "sub_agent_event",
-            agent_base::AgentStreamEvent::TextDelta { .. } => "text_delta",
-            agent_base::AgentStreamEvent::Answer { .. } => "answer",
-            agent_base::AgentStreamEvent::RunFinished { .. } => "run_finished",
-            agent_base::AgentStreamEvent::UserMessage { .. } => "user_message",
+            agent_runtime::AgentStreamEvent::RunStarted { .. } => "run_started",
+            agent_runtime::AgentStreamEvent::StepStarted { .. } => "step_started",
+            agent_runtime::AgentStreamEvent::Reasoning { .. } => "reasoning",
+            agent_runtime::AgentStreamEvent::ReasoningDelta { .. } => "reasoning_delta",
+            agent_runtime::AgentStreamEvent::ToolCallsPlanned { .. } => "tool_calls_planned",
+            agent_runtime::AgentStreamEvent::ToolCallStarted { .. } => "tool_call_started",
+            agent_runtime::AgentStreamEvent::ToolCallFinished { .. } => "tool_call_finished",
+            agent_runtime::AgentStreamEvent::SubAgentEvent { .. } => "sub_agent_event",
+            agent_runtime::AgentStreamEvent::TextDelta { .. } => "text_delta",
+            agent_runtime::AgentStreamEvent::Answer { .. } => "answer",
+            agent_runtime::AgentStreamEvent::RunFinished { .. } => "run_finished",
+            agent_runtime::AgentStreamEvent::UserMessage { .. } => "user_message",
         };
 
         Self {

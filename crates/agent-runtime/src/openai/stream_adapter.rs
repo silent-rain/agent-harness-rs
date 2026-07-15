@@ -61,8 +61,8 @@ pub enum AdapterOutput {
 /// # Examples
 ///
 /// ```
-/// use agent_base::openai::OpenAIStreamAdapter;
-/// use agent_base::session::AgentStreamEvent;
+/// use agent_runtime::openai::OpenAIStreamAdapter;
+/// use agent_runtime::session::AgentStreamEvent;
 ///
 /// let mut adapter = OpenAIStreamAdapter::new("run-1", "gpt-4");
 /// let outputs = adapter.translate(AgentStreamEvent::TextDelta {

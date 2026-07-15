@@ -60,9 +60,9 @@ const OBJECT_COMPLETION: &str = "chat.completion";
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::runtime::Agent;
-/// use agent_base::error::AgentResult;
-/// use agent_base::session::RunOutcome;
+/// use agent_runtime::runtime::Agent;
+/// use agent_runtime::error::AgentResult;
+/// use agent_runtime::session::RunOutcome;
 ///
 /// struct MyAgent;
 ///

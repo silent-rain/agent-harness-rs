@@ -38,7 +38,7 @@ use crate::{
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::runtime::LocalAgentSource;
+/// use agent_runtime::runtime::LocalAgentSource;
 ///
 /// // 全部启用（最常见场景）
 /// let source = LocalAgentSource::default().with_all_enabled();

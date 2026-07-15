@@ -98,7 +98,7 @@ pub struct McpServerConfig {
 /// # Examples
 ///
 /// ```rust
-/// use agent_base::types::mcp::McpServiceEntry;
+/// use agent_runtime::types::mcp::McpServiceEntry;
 ///
 /// // stdio config
 /// let json = r#"{"command": "npx", "args": ["--registry", "https://example.com", "@pkg/mcp"]}"#;

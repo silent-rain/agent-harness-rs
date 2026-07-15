@@ -67,8 +67,8 @@ use crate::{
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::a2a::A2AAgent;
-/// use agent_base::Agent;
+/// use agent_runtime::a2a::A2AAgent;
+/// use agent_runtime::Agent;
 ///
 /// # async fn example() -> anyhow::Result<()> {
 /// let remote = A2AAgent::connect("http://remote-agent:3000").await?;
@@ -116,7 +116,7 @@ impl A2AAgent {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use agent_base::a2a::A2AAgent;
+    /// use agent_runtime::a2a::A2AAgent;
     ///
     /// # async fn example() -> anyhow::Result<()> {
     /// let agent = A2AAgent::connect("http://localhost:3000").await?;
@@ -392,7 +392,7 @@ impl Agent for A2AAgent {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::a2a::client::a2a_agent::A2AAgentBuilder;
+/// use agent_runtime::a2a::client::a2a_agent::A2AAgentBuilder;
 ///
 /// # async fn example() -> anyhow::Result<()> {
 /// let agent = A2AAgentBuilder::new("http://localhost:3000")

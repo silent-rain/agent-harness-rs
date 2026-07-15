@@ -1,7 +1,7 @@
 //! 基于数据库的规则加载器
 //!
 //! 从 `t_agent_rule_rel` 与 `t_agent_rule_registry` 装配指定智能体启用的规则列表。
-//! 与 `agent_base::rule::loader::LocalRuleLoader` 形成对称实现：
+//! 与 `agent_runtime::rule::loader::LocalRuleLoader` 形成对称实现：
 //! 前者属于装配层（依赖 SeaORM），后者属于核心运行时（零外部存储依赖）。
 //!
 //! 提供的主要内容：
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
-use agent_base::types::rule::{RuleConfig, RuleSource};
+use agent_runtime::types::rule::{RuleConfig, RuleSource};
 use entity::agent::{rule_registry, rule_rel};
 
 use crate::error::PlatformResult;

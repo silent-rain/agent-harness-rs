@@ -21,7 +21,7 @@ use sea_orm::{
     prelude::DateTime,
 };
 
-use agent_base::types::session::ContextScope;
+use agent_runtime::types::session::ContextScope;
 use entity::agent::{session_agent_state, session_state, session_user_state};
 
 use crate::error::PlatformResult;

@@ -31,14 +31,14 @@
 //! ## 使用示例
 //!
 //! ```rust,no_run
-//! use agent_base::rule::LocalRuleLoader;
+//! use agent_runtime::rule::LocalRuleLoader;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // 本地加载
 //! let local_rules = LocalRuleLoader::new(".codebuddy/rules").load().await?;
 //!
 //! // 动态注入（数据库或 HTTP 加载后注入）
-//! use agent_base::types::rule::{RuleConfig, RuleSource};
+//! use agent_runtime::types::rule::{RuleConfig, RuleSource};
 //! let injected_rule = RuleConfig {
 //!     name: "db-rule-001".to_string(),
 //!     description: "Always use transactions.".to_string(),

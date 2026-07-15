@@ -14,7 +14,7 @@
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use tracing::debug;
 
-use agent_base::types::runtime::{AgentBundle, AgentDefinition, ModelConfig};
+use agent_runtime::types::runtime::{AgentBundle, AgentDefinition, ModelConfig};
 use entity::agent::{agent_config, llm_model, llm_model_rel, sub_agent_rel};
 
 use crate::{

@@ -30,9 +30,9 @@
 //!
 //! ```rust,no_run
 //! use std::sync::Arc;
-//! use agent_base::tool::{ToolPool, ReadFileTool, ListDirTool};
-//! use agent_base::tool::simple_tools::all_builtin_tools;
-//! use agent_base::types::tool::ToolSource;
+//! use agent_runtime::tool::{ToolPool, ReadFileTool, ListDirTool};
+//! use agent_runtime::tool::simple_tools::all_builtin_tools;
+//! use agent_runtime::types::tool::ToolSource;
 //!
 //! // 1. 直接装填后派生 ContextualToolSet
 //! let mut pool = ToolPool::new();

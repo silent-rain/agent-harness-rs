@@ -48,9 +48,9 @@ use crate::{
 /// ## 使用示例
 ///
 /// ```rust,no_run
-/// use agent_base::a2a::LocalA2aLoader;
+/// use agent_runtime::a2a::LocalA2aLoader;
 ///
-/// # async fn example() -> agent_base::error::AgentResult<()> {
+/// # async fn example() -> agent_runtime::error::AgentResult<()> {
 /// let loader = LocalA2aLoader::default();
 /// let configs = loader.load().await?;
 /// println!("Loaded {} A2A services", configs.len());

@@ -39,7 +39,7 @@ use futures::StreamExt;
 use sea_orm::DatabaseConnection;
 
 use agent_assembly::{AgentSummary, DbAgentSource, DbSessionService, Error, PlatformResult};
-use agent_base::{
+use agent_runtime::{
     RuntimeServices,
     model::create_model,
     runtime::{Agent, AgentBuilder, AgentEventStream},

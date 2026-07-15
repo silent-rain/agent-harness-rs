@@ -43,7 +43,7 @@
 //! ## 使用示例
 //!
 //! ```rust,no_run
-//! use agent_base::command::LocalCommandLoader;
+//! use agent_runtime::command::LocalCommandLoader;
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! // 本地加载

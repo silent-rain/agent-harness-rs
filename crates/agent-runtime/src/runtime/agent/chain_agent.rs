@@ -28,9 +28,9 @@ use crate::{
 /// ```rust,no_run
 /// use std::sync::Arc;
 /// use async_trait::async_trait;
-/// use agent_base::runtime::{Agent, ChainAgent};
-/// use agent_base::error::AgentResult;
-/// use agent_base::session::RunOutcome;
+/// use agent_runtime::runtime::{Agent, ChainAgent};
+/// use agent_runtime::error::AgentResult;
+/// use agent_runtime::session::RunOutcome;
 ///
 /// struct StepAgent(&'static str);
 ///

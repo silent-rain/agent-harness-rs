@@ -30,8 +30,8 @@ use crate::types::runtime::AgentBundle;
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::a2a::card::agent_card_from_bundle;
-/// use agent_base::types::runtime::AgentBundle;
+/// use agent_runtime::a2a::card::agent_card_from_bundle;
+/// use agent_runtime::types::runtime::AgentBundle;
 ///
 /// let bundle = AgentBundle::default();
 /// let card = agent_card_from_bundle(&bundle, "http://localhost:3000");
@@ -120,8 +120,8 @@ fn build_skills_from_bundle(bundle: &AgentBundle) -> Vec<AgentSkill> {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::a2a::card::AgentCardBuilder;
-/// use agent_base::types::runtime::AgentBundle;
+/// use agent_runtime::a2a::card::AgentCardBuilder;
+/// use agent_runtime::types::runtime::AgentBundle;
 ///
 /// let bundle = AgentBundle::default();
 /// let card = AgentCardBuilder::from_bundle(&bundle, "http://localhost:3000")

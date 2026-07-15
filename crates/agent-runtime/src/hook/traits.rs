@@ -26,9 +26,9 @@ use crate::{
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::error::AgentResult;
-/// use agent_base::hook::AgentHook;
-/// use agent_base::types::hook::{
+/// use agent_runtime::error::AgentResult;
+/// use agent_runtime::hook::AgentHook;
+/// use agent_runtime::types::hook::{
 ///     BeforeAgentArgs, BeforeAgentResult, AfterToolArgs, AfterToolResult,
 /// };
 ///

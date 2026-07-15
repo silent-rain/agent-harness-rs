@@ -34,10 +34,10 @@ use crate::{
 ///
 /// ```rust,no_run
 /// use std::sync::Arc;
-/// use agent_base::a2a::A2aServer;
-/// use agent_base::types::runtime::AgentBundle;
+/// use agent_runtime::a2a::A2aServer;
+/// use agent_runtime::types::runtime::AgentBundle;
 ///
-/// # async fn example(agent: Arc<dyn agent_base::Agent>, bundle: AgentBundle) -> anyhow::Result<()> {
+/// # async fn example(agent: Arc<dyn agent_runtime::Agent>, bundle: AgentBundle) -> anyhow::Result<()> {
 /// // 形态 ①：一行启动（最常见）
 /// A2aServer::new(agent, bundle)
 ///     .serve("0.0.0.0:3000")
@@ -64,10 +64,10 @@ impl A2aServer {
     ///
     /// ```rust,no_run
     /// use std::sync::Arc;
-    /// use agent_base::a2a::A2aServer;
-    /// use agent_base::types::runtime::AgentBundle;
+    /// use agent_runtime::a2a::A2aServer;
+    /// use agent_runtime::types::runtime::AgentBundle;
     ///
-    /// # async fn example(agent: Arc<dyn agent_base::Agent>, bundle: AgentBundle) -> anyhow::Result<()> {
+    /// # async fn example(agent: Arc<dyn agent_runtime::Agent>, bundle: AgentBundle) -> anyhow::Result<()> {
     /// A2aServer::new(agent, bundle).serve("0.0.0.0:3000").await?;
     /// # Ok(())
     /// # }
@@ -95,10 +95,10 @@ impl A2aServer {
     ///
     /// ```rust,no_run
     /// use std::sync::Arc;
-    /// use agent_base::a2a::{A2aServer, card::AgentCardBuilder};
-    /// use agent_base::types::runtime::AgentBundle;
+    /// use agent_runtime::a2a::{A2aServer, card::AgentCardBuilder};
+    /// use agent_runtime::types::runtime::AgentBundle;
     ///
-    /// # async fn example(agent: Arc<dyn agent_base::Agent>, bundle: AgentBundle) -> anyhow::Result<()> {
+    /// # async fn example(agent: Arc<dyn agent_runtime::Agent>, bundle: AgentBundle) -> anyhow::Result<()> {
     /// let card = AgentCardBuilder::from_bundle(&bundle, "http://my-agent.example.com")
     ///     .with_provider("MyTeam", "https://myteam.example.com")
     ///     .build();
@@ -177,12 +177,12 @@ impl A2aServer {
 ///
 /// ```rust,no_run
 /// use std::sync::Arc;
-/// use agent_base::a2a::server::serve::MultiA2aServer;
-/// use agent_base::types::runtime::AgentBundle;
+/// use agent_runtime::a2a::server::serve::MultiA2aServer;
+/// use agent_runtime::types::runtime::AgentBundle;
 ///
 /// # async fn example(
-/// #     math_agent: Arc<dyn agent_base::Agent>, math_bundle: AgentBundle,
-/// #     weather_agent: Arc<dyn agent_base::Agent>, weather_bundle: AgentBundle,
+/// #     math_agent: Arc<dyn agent_runtime::Agent>, math_bundle: AgentBundle,
+/// #     weather_agent: Arc<dyn agent_runtime::Agent>, weather_bundle: AgentBundle,
 /// # ) -> anyhow::Result<()> {
 /// MultiA2aServer::new("0.0.0.0:3000")
 ///     .mount("/agents/math", math_agent, math_bundle)

@@ -35,13 +35,13 @@ use crate::{
 /// # Examples
 ///
 /// ```rust,no_run
-/// use agent_base::RuntimeServices;
+/// use agent_runtime::RuntimeServices;
 ///
 /// // 全部 Noop
 /// let services = RuntimeServices::noop();
 ///
 /// // 仅自定义 session
-/// # use agent_base::session::InMemorySessionService;
+/// # use agent_runtime::session::InMemorySessionService;
 /// # use std::sync::Arc;
 /// # fn custom_session() -> Arc<InMemorySessionService> { Arc::new(InMemorySessionService::new()) }
 /// let services = RuntimeServices {

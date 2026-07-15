@@ -30,9 +30,9 @@ use crate::{
 /// ## 使用示例
 ///
 /// ```rust,no_run
-/// use agent_base::mcp::{LocalMcpLoader, McpRegistry};
+/// use agent_runtime::mcp::{LocalMcpLoader, McpRegistry};
 ///
-/// # async fn example() -> agent_base::error::AgentResult<()> {
+/// # async fn example() -> agent_runtime::error::AgentResult<()> {
 /// let loader = LocalMcpLoader::default();
 /// let configs = loader.load().await?;
 ///

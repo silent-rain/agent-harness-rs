@@ -18,7 +18,7 @@ use sea_orm::{
     QueryFilter, QueryOrder, Set, prelude::DateTime,
 };
 
-use agent_base::types::session::SessionStatus;
+use agent_runtime::types::session::SessionStatus;
 use entity::agent::session::{ActiveModel, Column, Entity, Model};
 
 use crate::error::{Error, PlatformResult};

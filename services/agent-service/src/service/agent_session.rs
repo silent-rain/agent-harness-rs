@@ -5,7 +5,7 @@
 use log::error;
 use nject::injectable;
 
-use agent_base::message::ConversationMessage;
+use agent_runtime::message::ConversationMessage;
 use err_code::Error;
 
 use crate::{

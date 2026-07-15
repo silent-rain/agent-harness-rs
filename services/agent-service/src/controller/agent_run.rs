@@ -10,7 +10,7 @@ use axum_context::Context;
 use axum_response::{Responder, Response, ResponseErr};
 use inject::AInjectProvider;
 
-use agent_base::{openai::ChatCompletion, session::RunOutcome};
+use agent_runtime::{openai::ChatCompletion, session::RunOutcome};
 
 use crate::{
     dto::agent_run::{AgentConfigRunReq, AgentDebugRunReq, AgentRunReq},

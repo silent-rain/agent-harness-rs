@@ -20,7 +20,7 @@ use futures::StreamExt;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
-use agent_base::{a2a::A2AAgent, error::AgentResult, runtime::Agent, types::agent_meta::AgentMeta};
+use agent_runtime::{a2a::A2AAgent, error::AgentResult, runtime::Agent, types::agent_meta::AgentMeta};
 
 #[tokio::main]
 async fn main() -> AgentResult<()> {
@@ -69,7 +69,7 @@ async fn main() -> AgentResult<()> {
     let mut stream = remote.run_stream("session-2", "Tell me a joke")?;
 
     while let Some(event) = stream.next().await {
-        use agent_base::session::AgentStreamEvent;
+        use agent_runtime::session::AgentStreamEvent;
         match event {
             AgentStreamEvent::TextDelta { delta, .. } => {
                 print!("{delta}");

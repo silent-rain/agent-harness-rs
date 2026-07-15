@@ -2,7 +2,7 @@
 //!
 //! 从 `t_agent_a2a_service_rel` JOIN `t_agent_a2a_service_registry` 装配
 //! 指定智能体启用的 A2A 服务配置列表。
-//! 与 `agent_base::a2a::client::loader::LocalA2aLoader` 形成对称实现：
+//! 与 `agent_runtime::a2a::client::loader::LocalA2aLoader` 形成对称实现：
 //! 前者属于装配层（依赖 SeaORM），后者属于核心运行时（零外部存储依赖）。
 //!
 //! 提供的主要内容：
@@ -12,7 +12,7 @@ use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, JoinType, QueryFilter, QuerySelect, RelationTrait,
 };
 
-use agent_base::types::a2a::{A2aServersWrapper, A2aServiceConfig};
+use agent_runtime::types::a2a::{A2aServersWrapper, A2aServiceConfig};
 use entity::agent::{a2a_service_registry, a2a_service_rel};
 
 use crate::error::{Error, PlatformResult};
