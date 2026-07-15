@@ -10,7 +10,7 @@
 //!
 //! 运行：
 //! ```bash
-//! cargo run -p agent-base --example config_driven_agent
+//! cargo run -p agent-runtime --example config_driven_agent
 //! ```
 
 use std::env;

@@ -12,7 +12,7 @@ axum-response = { workspace = true }
 axum-validator = { workspace = true }
 
 # 智能体核心
-agent-base = { workspace = true }
+agent-runtime = { workspace = true }
 agent-assembly = { workspace = true }
 
 axum = { workspace = true }

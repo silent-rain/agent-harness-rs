@@ -1,6 +1,6 @@
 //! 智能体运行时基座库
 //!
-//! `agent-base` 是智能体平台的核心运行时基座，以 `rig-core` 为核心提供：
+//! `agent-runtime` 是智能体平台的核心运行时基座，以 `rig-core` 为核心提供：
 //!
 //! - [`types`] - 核心领域模型（`AgentDefinitionSnapshot` 等）
 //! - [`hook`] - 智能体生命周期钩子（`AgentHook`、`HookRegistry`）
@@ -23,7 +23,7 @@
 //!
 //! ## 设计原则
 //!
-//! - `agent-base` 以 `rig-core` 为核心，工具系统直接使用 `rig::ToolSet`
+//! - `agent-runtime` 以 `rig-core` 为核心，工具系统直接使用 `rig::ToolSet`
 //! - 用户只需传入 rig `CompletionModel` 实例，无需感知内部推理逻辑
 //! - 所有可执行动作统一通过 `function calling` 或受 `JSON Schema` 约束的结构化协议触发
 //! - 禁止依赖解析自由文本来驱动工具、RAG、记忆或子智能体调用

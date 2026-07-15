@@ -13,7 +13,7 @@
 
 | 层面                                   | 状态                  |
 | -------------------------------------- | --------------------- |
-| 运行时基座（`agent-base`）             | ✅ 已完成             |
+| 运行时基座（`agent-runtime`）             | ✅ 已完成             |
 | 平台装配层（`agent-platform`）         | ✅ 已完成             |
 | 服务入口层（`agent-service`）          | ✅ 已完成（基础接口） |
 | 知识与记忆接入                         | ✅ 已完成             |
@@ -39,7 +39,7 @@
 │  provider / resolver / memory / knowledge             │
 │  scheduler / observability                            │
 ├──────────────────────────────────────────────────────┤
-│              crates/core/agent-base（运行时基座层）    │
+│              crates/core/agent-runtime（运行时基座层）    │
 │  types / runtime / planner / tools / mcp              │
 │  memory / scheduler / event / observability           │
 ├──────────────────────────────────────────────────────┤
@@ -53,7 +53,7 @@
 ```text
 agent-service
   └── agent-platform
-        ├── agent-base
+        ├── agent-runtime
         ├── rag-core（知识检索）
         ├── job-engine（异步任务）
         ├── database / entity / migration
@@ -85,7 +85,7 @@ Client Request
 ### 关键设计原则
 
 - **动作层结构化，展示层自然语言**：所有可执行动作通过 `function calling` 或受 `JSON Schema` 约束的结构化协议触发，禁止解析自由文本驱动工具调用
-- **`agent-base` 不依赖数据库**：只消费统一快照（`AgentDefinitionSnapshot`）与抽象 Provider
+- **`agent-runtime` 不依赖数据库**：只消费统一快照（`AgentDefinitionSnapshot`）与抽象 Provider
 - **Builder 模式统一构建**：所有运行时构建通过 `AgentRuntime::builder(...).build().await`，`build()` 自动初始化工具和 MCP 连接
 - **配置驱动工具可用性**：工具的可用性完全由 `snapshot.tool_configs`（来自 `t_agent_tool_registry` + `t_agent_tool_rel`）决定，采用"候选池 + 白名单"两层模式
 - **`.codebuddy` 自动发现**：运行前自动探测工作区，存在则参与装配，不存在则忽略
@@ -95,7 +95,7 @@ Client Request
 
 ## 三、功能状态清单
 
-### 3.1 运行时基座（`agent-base`）
+### 3.1 运行时基座（`agent-runtime`）
 
 | 功能                                                                  | 状态                       |
 | --------------------------------------------------------------------- | -------------------------- |
@@ -342,7 +342,7 @@ Client Request
 
 ### Registry 同形装配范式
 
-`agent-base` 中所有能力装配均遵循**统一的 Registry 装配契约**：Registry 即装配中枢，负责**本地目录扫描**（内置于 Registry）与**动态配置注入**（由 Builder 路由），并在 `build()` 阶段合并输出。
+`agent-runtime` 中所有能力装配均遵循**统一的 Registry 装配契约**：Registry 即装配中枢，负责**本地目录扫描**（内置于 Registry）与**动态配置注入**（由 Builder 路由），并在 `build()` 阶段合并输出。
 
 **设计原则**：
 
@@ -510,7 +510,7 @@ description: 为指定模块生成 API 文档
 
 ### SubAgent 模块
 
-`crates/core/agent-base/src/sub_agent/` 模块组织：
+`crates/core/agent-runtime/src/sub_agent/` 模块组织：
 
 ```text
 sub_agent/
@@ -604,7 +604,7 @@ LLM → function_call("delegate_sub_agent", {sub_agent_name, task})
     → runtime.run()
 ```
 
-新路径更简洁，不需要 Scheduler 抽象层，直接在 `agent-base` 内部完成。两条路径暂时共存，旧路径后续可逐步废弃。
+新路径更简洁，不需要 Scheduler 抽象层，直接在 `agent-runtime` 内部完成。两条路径暂时共存，旧路径后续可逐步废弃。
 
 **当前限制**：
 
@@ -872,7 +872,7 @@ let runtime = AgentRuntime::builder(snapshot, model, publisher, services)
 | 阶段                            | 核心内容                                                        | 状态      |
 | ------------------------------- | --------------------------------------------------------------- | --------- |
 | Phase 0（方案冻结）             | 抽象边界、核心 trait 草案、数据库 ER 草图                       | ✅ 完成   |
-| Phase 1（最小可用运行时）       | `agent-base` 基座、结构化动作协议、SSE 输出                     | ✅ 完成   |
+| Phase 1（最小可用运行时）       | `agent-runtime` 基座、结构化动作协议、SSE 输出                     | ✅ 完成   |
 | Phase 2（平台装配）             | `agent-platform`、DB 配置装配、`.codebuddy` 融合、快照生成      | ✅ 完成   |
 | Phase 3（服务入口）             | `agent-service`、API 路由、SSE 流式运行、调试运行               | ✅ 完成   |
 | Phase 4（知识与记忆）           | `rag-core` 适配、流水记忆读写、精炼记忆表就绪                   | ✅ 完成   |
@@ -919,7 +919,7 @@ let runtime = AgentRuntime::builder(snapshot, model, publisher, services)
 
 ## 十一、架构边界说明
 
-- **`agent-base` 不依赖数据库**：只消费 `AgentDefinitionSnapshot` 和抽象 Provider，可脱离数据库单独使用（测试 / 离线 / 嵌入式场景）
+- **`agent-runtime` 不依赖数据库**：只消费 `AgentDefinitionSnapshot` 和抽象 Provider，可脱离数据库单独使用（测试 / 离线 / 嵌入式场景）
 - **`rig-core` 是必选依赖**：工具系统（`rig::ToolSet` / `rig::Tool`）和 LLM 推理（`ModelAdapter`）均基于 `rig-core`
 - **`rag-core` 负责知识检索**：Agent 通过 `AgentKnowledgeAdapter` 适配层接入，不直接依赖 `rag-service`
 - **`job-engine` 负责异步任务**：记忆蒸馏、配置预热、会话归档等后台任务通过 `job-engine` 执行

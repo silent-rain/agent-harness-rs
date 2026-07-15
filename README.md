@@ -16,7 +16,7 @@ agent-harness-rs/
 │   │   ├── migration/         ← 数据库迁移（Agent 域所有表的 DDL）
 │   │   ├── err-code/          ← 统一业务错误码定义
 │   │   └── inject/            ← 依赖注入辅助（nject + sea-orm 连接管理）
-│   ├── agent-base/            ← 运行时内核（Runtime / Planner / Executor / Streaming / Hook）
+│   ├── agent-runtime/            ← 运行时内核（Runtime / Planner / Executor / Streaming / Hook）
 │   └── agent-assembly/        ← 装配层（从 DB/配置源组装可运行的 Agent）
 └── services/
     └── agent-service/         ← HTTP/SSE 服务层（Controller / DAO / DTO / Router）
@@ -30,7 +30,7 @@ agent-harness-rs/
 |                    | `core/migration` | Agent 域数据库表结构迁移（DDL），所有表统一使用 `t_agent_` 前缀           |
 |                    | `core/err-code`  | 统一业务错误码（`Error`）定义，对接 `axum-response` / `tonic`             |
 |                    | `core/inject`    | 基于 `nject` 的依赖注入 Provider，管理数据库连接与服务装配                |
-| **运行时内核**     | `agent-base`     | 定义智能体核心抽象与执行引擎：Runtime、Planner、Executor、Streaming、Hook |
+| **运行时内核**     | `agent-runtime`     | 定义智能体核心抽象与执行引擎：Runtime、Planner、Executor、Streaming、Hook |
 | **装配层**         | `agent-assembly` | 从数据库/配置源加载资源，组装 `AgentBundle`，构建可运行的 Agent 实例      |
 | **服务层**         | `agent-service`  | 对外 HTTP/SSE 接口，提供 Agent CRUD、运行、会话管理等 API                 |
 
@@ -39,7 +39,7 @@ agent-harness-rs/
 ```text
 agent-service
   ├── agent-assembly
-  │     ├── agent-base
+  │     ├── agent-runtime
   │     └── core/entity
   ├── core/entity
   ├── core/err-code
@@ -49,7 +49,7 @@ core/migration
   └── core/entity
 ```
 
-- `agent-base` 是纯运行时库，**不依赖数据库**，可独立用于本地/嵌入式场景
+- `agent-runtime` 是纯运行时库，**不依赖数据库**，可独立用于本地/嵌入式场景
 - `agent-assembly` 是装配层，负责将数据库配置"编织"为运行时快照
 - `core/entity` 与 `core/migration` 提供数据持久化基础设施；`core/err-code` 提供统一错误码；`core/inject` 提供依赖注入装配
 - `agent-service` 是面向用户的 HTTP 服务入口
@@ -80,7 +80,7 @@ cp .env.example .env
 
 ```bash
 # 纯运行时示例（无需数据库）
-cargo run -p agent-base --example basic_agent --features rule
+cargo run -p agent-runtime --example basic_agent --features rule
 
 # 从数据库装配 Agent 并运行
 cargo run -p agent-assembly --example db_agent -- --prompt "你好"

@@ -1,6 +1,6 @@
-//! 基础智能体流式示例（仅 Rule）
+//! 完整装配的智能体流式示例（Rule + Skill + Tool + MCP + Command）
 //!
-//! 与 [`basic_agent`] 示例配置完全一致（Qwen-Image 2512 叙事提示词助手），
+//! 与 [`full_agent`] 示例保持完全一致的子系统装配（Rule / Skill / Tool / MCP / Command），
 //! 区别在于通过 [`Agent::run_stream`] 实时消费 [`AgentStreamEvent`]，
 //! 在控制台逐 token / 逐事件展示推理过程，最终拼接出完整回答。
 //!
@@ -16,7 +16,7 @@
 //!
 //! 运行：
 //! ```bash
-//! cargo run -p agent-base --example basic_agent_streaming
+//! cargo run -p agent-runtime --example full_agent_streaming
 //! ```
 
 use std::{
@@ -28,10 +28,16 @@ use dotenv::dotenv;
 use futures::StreamExt;
 
 use agent_base::{
+    command::LocalCommandLoader,
     error::AgentResult,
+    mcp::McpRegistry,
+    rule::LocalRuleLoader,
     runtime::{Agent, AgentBuilder, AgentEventStream},
     session::AgentStreamEvent,
+    skill::LocalSkillLoader,
+    tool::{ListDirTool, ReadFileTool, RunCommandTool, SearchFilesTool},
     types::{
+        mcp::{McpServerConfig, McpServiceEntry},
         rule::{RuleConfig, RuleSource},
         runtime::{AgentConfig, AgentDefinition, ModelConfig},
     },
@@ -57,10 +63,20 @@ const DEFAULT_MODEL: &str = "gpt-4o";
 const DEFAULT_PROVIDER: &str = "openai";
 const DEFAULT_TEMPERATURE: f64 = 0.7;
 
+// === 运行参数常量 ===
+
 /// 示例使用的会话标识。
-const SESSION_ID: &str = "basic-streaming-session-1";
+const SESSION_ID: &str = "full-streaming-session-1";
 /// 示例使用的用户输入。
-const USER_INPUT: &str = "一个女孩在河边散步";
+const USER_INPUT: &str =
+    "当前有哪些可用的skills？请将skills列出来。如果存在web规范，则使用该规范生成一个html的欢迎页面";
+
+// === 子系统资源路径 ===
+
+/// 本地 Skill 加载根目录。
+const SKILL_DIR: &str = ".codebuddy/skills";
+/// 本地 Command 加载根目录。
+const COMMAND_DIR: &str = ".codebuddy/commands";
 
 /// 从环境变量加载 [`ModelBindingConfig`]。
 ///
@@ -92,9 +108,9 @@ fn load_model_binding_from_env() -> AgentResult<ModelConfig> {
     })
 }
 
-/// 创建基础智能体配置（Qwen-Image 2512 叙事提示词助手）。
+/// 创建基础智能体配置（绘画提示词助手）。
 ///
-/// 与 `basic_agent` 示例保持一致，便于对比同一智能体在阻塞与流式两种运行模式下的行为差异。
+/// 与 `full_agent` 示例保持一致，便于对比同一智能体在阻塞与流式两种运行模式下的行为差异。
 fn create_basic_agent_config() -> AgentResult<AgentConfig> {
     Ok(AgentConfig {
         agent_definition: AgentDefinition {
@@ -135,11 +151,24 @@ fn create_basic_rules() -> Vec<RuleConfig> {
     }]
 }
 
+/// 创建示例 MCP 服务配置。
+fn create_basic_mcp_configs() -> Vec<McpServerConfig> {
+    vec![McpServerConfig {
+        service_name: "example-mcp-service".to_string(),
+        allowed_tools: vec!["search".to_string(), "fetch".to_string()],
+        server_config: McpServiceEntry {
+            url: Some("http://localhost:8080/mcp".to_string()),
+            transport_type: Some("streamable_http".to_string()),
+            ..Default::default()
+        },
+    }]
+}
+
 /// 消费 [`AgentEventStream`] 并实时打印事件，返回拼接后的最终回答。
 ///
 /// # 事件语义
 ///
-/// `agent-base` 的事件流中存在两类与"答案"相关的事件，二者职责不同：
+/// `agent-runtime` 的事件流中存在两类与"答案"相关的事件，二者职责不同：
 ///
 /// - [`AgentStreamEvent::TextDelta`]：LLM 原始 token 流，**真正的逐 token 流**。
 ///   `ModelCaller` 每收到一段 `StreamChunk::TextDelta` 就立即发布一条。
@@ -148,6 +177,10 @@ fn create_basic_rules() -> Vec<RuleConfig> {
 ///
 /// 因此本示例使用 `TextDelta` 做逐 token 实时输出与累积；`Answer` 仅作为
 /// 终段确认信号，不再重复累积，以免最终回答出现一倍冗余。
+///
+/// 相比 `basic_agent_streaming`，本示例额外打印工具调用相关事件
+/// （[`AgentStreamEvent::ToolCallStarted`] / [`AgentStreamEvent::ToolCallFinished`]），
+/// 以便在完整子系统装配下观察 Tool / MCP 的调用过程。
 ///
 /// # Parameters
 ///
@@ -184,6 +217,14 @@ async fn consume_stream(mut stream: AgentEventStream) -> String {
             AgentStreamEvent::Answer { .. } => {
                 println!("\n— 终段镜像已就位 —");
             }
+            AgentStreamEvent::ToolCallStarted { toolname, .. } => {
+                println!("\n🔧 工具调用开始: {toolname}");
+            }
+            AgentStreamEvent::ToolCallFinished {
+                toolname, success, ..
+            } => {
+                println!("🔧 工具调用结束: {toolname}, success={success}");
+            }
             AgentStreamEvent::RunFinished {
                 total_steps,
                 finish_reason,
@@ -201,12 +242,38 @@ async fn consume_stream(mut stream: AgentEventStream) -> String {
     final_answer
 }
 
-/// 运行基础智能体流式示例（仅 Rule）。
-async fn run_basic_agent_streaming() -> AgentResult<String> {
+/// 运行完整装配的智能体流式示例。
+async fn run_full_agent_streaming() -> AgentResult<String> {
     let agent_config = create_basic_agent_config()?;
 
+    // === 1. Rule: load via LocalRuleLoader and combine with extra rules ===
+    let mut rules = LocalRuleLoader::default().load().await?;
+    rules.extend(create_basic_rules());
+
+    // === 2. Skill: load via LocalSkillLoader ===
+    let skills = LocalSkillLoader::new(SKILL_DIR).load().await?;
+
+    // === 3. Tool: registered directly on the builder below ===
+
+    // === 4. MCP: build mcp registry and connect services ===
+    let mcp_configs = create_basic_mcp_configs();
+    let mut mcp_registry = McpRegistry::new().with_configs(mcp_configs);
+    // NOTE: example MCP service is not actually running, ignore failures.
+    mcp_registry.connect_all().await.ok();
+
+    // === 5. Command: load via LocalCommandLoader ===
+    let commands = LocalCommandLoader::new(COMMAND_DIR).load().await?;
+
+    // === Assemble all subsystems into Agent ===
     let agent = AgentBuilder::new(agent_config)?
-        .add_rules(create_basic_rules())
+        .add_rules(rules)
+        .add_skills(skills)
+        .add_tool(ReadFileTool)
+        .add_tool(ListDirTool)
+        .add_tool(SearchFilesTool)
+        .add_tool(RunCommandTool)
+        .with_mcp_registry(mcp_registry)
+        .add_commands(commands)
         .build()
         .await?;
 
@@ -228,8 +295,8 @@ async fn main() -> AgentResult<()> {
         .with_target(false)
         .init();
 
-    println!("=== 基础智能体流式示例 ===");
-    let final_answer = run_basic_agent_streaming().await?;
+    println!("=== 完整装配智能体流式示例 ===");
+    let final_answer = run_full_agent_streaming().await?;
     println!("\n--- 最终回答 ---\n{final_answer}");
     println!("\n=== 示例完成 ===");
     Ok(())

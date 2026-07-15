@@ -1,9 +1,9 @@
 //! 装配层加载器
 //!
-//! 按"资源域 → 数据来源"两级组织各类 Loader，与 `agent-base` 内部的
+//! 按"资源域 → 数据来源"两级组织各类 Loader，与 `agent-runtime` 内部的
 //! `rule/loader/local.rs` 结构形成镜像：
 //!
-//! - `agent-base` 在每个资源域内放置零依赖的本地加载器
+//! - `agent-runtime` 在每个资源域内放置零依赖的本地加载器
 //! - `agent-assembly` 在 `loader/<resource>/<source>.rs` 提供基于外部存储
 //!   （DB / HTTP / Cache 等）的加载器
 //!

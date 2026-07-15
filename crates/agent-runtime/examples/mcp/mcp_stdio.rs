@@ -21,7 +21,7 @@
 //! # 运行
 //!
 //! ```sh
-//! OPENAI_API_KEY=sk-xxx cargo run --example mcp_stdio --features mcp -p agent-base
+//! OPENAI_API_KEY=sk-xxx cargo run --example mcp_stdio --features mcp -p agent-runtime
 //! ```
 
 use std::env;

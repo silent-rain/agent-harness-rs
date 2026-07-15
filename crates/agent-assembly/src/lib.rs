@@ -9,7 +9,7 @@
 //! agent-service
 //!   └── agent-assembly          ← 本 crate
 //!         ├── agent             ← 数据库驱动的 AgentSource
-//!         └── agent-base        ← 运行时基座（不含 DB 依赖）
+//!         └── agent-runtime        ← 运行时基座（不含 DB 依赖）
 //! ```
 //!
 //! # 快速开始
@@ -41,7 +41,7 @@ pub use session::{
     SessionStateEntry, SessionUpdate,
 };
 
-// 重导出 agent-base 的核心类型，方便上层直接使用
+// 重导出 agent-runtime 的核心类型，方便上层直接使用
 pub use agent_base::{
     Agent, ModelAdapter, RuntimeServices,
     types::runtime::{AgentBundle, AgentConfig},

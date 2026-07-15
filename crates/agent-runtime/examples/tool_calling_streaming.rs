@@ -18,7 +18,7 @@
 //!
 //! 运行：
 //! ```bash
-//! cargo run -p agent-base --example tool_calling_streaming
+//! cargo run -p agent-runtime --example tool_calling_streaming
 //! ```
 
 use std::{
@@ -64,9 +64,9 @@ const SESSION_ID: &str = "tool-calling-streaming-session-1";
 /// 示例使用的用户输入：明确要求模型调用工具完成多步任务。
 const USER_INPUT: &str = concat!(
     "请帮我完成以下任务，必须通过调用提供的工具完成，不要凭空猜测：\n",
-    "1. 使用 list_dir 列出 `crates/core/agent-base/examples` 目录下的全部文件；\n",
+    "1. 使用 list_dir 列出 `crates/core/agent-runtime/examples` 目录下的全部文件；\n",
     "2. 从中找到 `full_agent.rs`，使用 read_file 读取它的前 30 行；\n",
-    "3. 用 search_files 在 `crates/core/agent-base/src/tool` 目录下查找包含关键字 `ReadFileTool` 的文件；\n",
+    "3. 用 search_files 在 `crates/core/agent-runtime/src/tool` 目录下查找包含关键字 `ReadFileTool` 的文件；\n",
     "4. 完成后用一段简短中文总结你看到的内容（不要复述全部代码）。"
 );
 
@@ -80,7 +80,7 @@ const SYSTEM_PROMPT: &str = concat!(
     "- `run_command`：执行 shell 命令，参数 `command`（必填）。仅在用户明确要求执行命令时使用。\n\n",
     "工作原则：\n",
     "1. 一次只调用一个工具，根据返回结果决定下一步。\n",
-    "2. 路径优先使用相对工作区根的相对路径（例如 `crates/core/agent-base/examples`）。\n",
+    "2. 路径优先使用相对工作区根的相对路径（例如 `crates/core/agent-runtime/examples`）。\n",
     "3. 全部工具调用完成后，用一段中文小结向用户复述你做了什么、看到了什么。"
 );
 

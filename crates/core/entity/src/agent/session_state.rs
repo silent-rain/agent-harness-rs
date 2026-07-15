@@ -32,7 +32,6 @@ pub struct Model {
     /// 所属用户ID（冗余；支持多种身份系统）
     pub user_id: String,
     /// 完整业务 JSON（可包含 role / content / tool 等字段，可空表示 null）
-    /// 数据结构: [agent-base::message::ConversationMessage]
     #[sea_orm(column_type = "Text", nullable)]
     pub content_json: Option<String>,
     /// 过期时间（用于 TTL 清理，可空表示不过期）

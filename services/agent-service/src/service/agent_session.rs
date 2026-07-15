@@ -1,7 +1,6 @@
 //! 智能体会话管理服务
 //!
 //! 提供会话级别的取消和状态查询能力，通过本地 [`AgentSessionDao`]
-//! 操作数据库，不依赖外部 `agent-assembly` 或 `agent-base` 的会话模块。
 
 use log::error;
 use nject::injectable;

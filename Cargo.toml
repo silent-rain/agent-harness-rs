@@ -7,7 +7,7 @@ members = [
   "crates/core/inject",
 
   # Agent Harness
-  "crates/agent-base",
+  "crates/agent-runtime",
   "crates/agent-assembly",
   "services/agent-service",
 ]
@@ -35,7 +35,7 @@ axum-validator = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", bran
 # Agent Harness
 entity = { path = "crates/core/entity" }
 migration = { path = "crates/core/migration" }
-agent-base = { path = "crates/agent-base" }
+agent-runtime = { path = "crates/agent-runtime" }
 agent-assembly = { path = "crates/agent-assembly" }
 
 # 异步运行时

@@ -22,7 +22,7 @@
 //!
 //! ```sh
 //! OPENAI_API_KEY=sk-xxx MCP_SSE_URL=http://localhost:8081/sse \
-//!   cargo run --example mcp_sse --features mcp -p agent-base
+//!   cargo run --example mcp_sse --features mcp -p agent-runtime
 //! ```
 
 use std::env;

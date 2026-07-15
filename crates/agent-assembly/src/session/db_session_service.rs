@@ -8,14 +8,14 @@
 //! - **完全无状态**：服务不再绑定任何 `(agent_id, user_id, session_id)` 元组，
 //!   所有写入所需的标识全部由调用方通过 [`SessionEventRecord`] 携带。
 //! - **会话主表创建**：`t_agent_session` 主表的创建由
-//!   [`SessionService::create_session`] 提供；`agent-base` 的
+//!   [`SessionService::create_session`] 提供；`agent-runtime` 的
 //!   `LlmAgent::run_stream` 会在每次运行入口先查询会话状态，
 //!   仅在会话不存在时调用 `create_session` 直接创建，避免重复查询。
 //! - **职责拆分**：本服务是组合层，所有数据操作下沉到 [`SessionDao`] /
 //!   [`SessionEventDao`] / [`SessionStateDao`]，本模块只做接口适配与字段映射。
 //! - **写入入口收敛**：所有事件追加汇聚到
 //!   [`SessionService::append_record`]；事件类型字符串与 `run_id` 提取由
-//!   `agent-base` 的 [`AgentStreamEvent::event_type`] /
+//!   `agent-runtime` 的 [`AgentStreamEvent::event_type`] /
 //!   [`AgentStreamEvent::run_id`] 提供。
 //! - **上下文按序追加**：`append_context` 将每条 [`ConversationMessage`] 序列化为
 //!   一条业务 JSON，调用 [`SessionStateDao::append`] 追加；`list_context`

@@ -1,6 +1,6 @@
 //! OpenAI Chat Completions 协议兼容层
 //!
-//! 提供 `agent-base` 内部事件流到 OpenAI Chat Completions API 的协议产物，
+//! 提供 `agent-runtime` 内部事件流到 OpenAI Chat Completions API 的协议产物，
 //! 上层（HTTP / RPC / SDK 调用方）可直接复用 OpenAI 官方 SDK 消费。
 //!
 //! 提供的主要内容：

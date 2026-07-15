@@ -4,7 +4,7 @@
 
 ## 概述
 
-`agent-assembly` 是 Agent Harness 架构中的**装配层（Assembly Layer）**，位于运行时基座 `agent-base` 与服务层 `agent-service` 之间。它的核心职责是：
+`agent-assembly` 是 Agent Harness 架构中的**装配层（Assembly Layer）**，位于运行时基座 `agent-runtime` 与服务层 `agent-service` 之间。它的核心职责是：
 
 1. 从数据库加载 Agent 配置（模型绑定、工具、规则、技能、MCP 服务等）
 2. 将配置组装为 `AgentBundle`（运行时快照）
@@ -19,7 +19,7 @@ agent-service          ← HTTP/SSE 对外接口
         ├── session/   ← 会话持久化（Session / Event / State DAO）
         ├── agent/     ← 数据库驱动的 AgentSource
         ├── knowledge/ ← 知识库适配器
-        └── agent-base ← 运行时基座（不含 DB 依赖）
+        └── agent-runtime ← 运行时基座（不含 DB 依赖）
 ```
 
 ## 核心模块
@@ -80,7 +80,7 @@ let answer = agent.run("session-1", "你好").await?;
 
 ## 依赖关系
 
-- **`agent-base`** — 运行时基座，提供 Agent Runtime、Planner、Executor 等核心能力
+- **`agent-runtime`** — 运行时基座，提供 Agent Runtime、Planner、Executor 等核心能力
 - **`agent-entity`** — Agent 域数据库实体定义（SeaORM Entity）
 - **`database`** — 数据库连接池
 - **`rag-core`** — RAG 知识检索核心

@@ -27,7 +27,7 @@
 //!
 //! ```sh
 //! OPENAI_API_KEY=sk-xxx MCP_HTTP_URL=http://localhost:8080/mcp \
-//!   cargo run --example mcp_streamable_http --features mcp -p agent-base
+//!   cargo run --example mcp_streamable_http --features mcp -p agent-runtime
 //! ```
 
 use std::env;

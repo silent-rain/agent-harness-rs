@@ -9,7 +9,7 @@
 //!
 //! 运行：
 //! ```bash
-//! cargo run -p agent-base --example full_agent
+//! cargo run -p agent-runtime --example full_agent
 //! ```
 
 use std::env;

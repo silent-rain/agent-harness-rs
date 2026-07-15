@@ -128,7 +128,7 @@ fn build_db_runtime_services(db: DatabaseConnection) -> RuntimeServices {
 ///
 /// # 事件语义
 ///
-/// `agent-base` 的事件流中存在两类与"答案"相关的事件，二者职责不同：
+/// `agent-runtime` 的事件流中存在两类与"答案"相关的事件，二者职责不同：
 ///
 /// - [`AgentStreamEvent::TextDelta`]：LLM 原始 token 流，**真正的逐 token 流**。
 ///   `ModelCaller` 每收到一段 `StreamChunk::TextDelta` 就立即发布一条。

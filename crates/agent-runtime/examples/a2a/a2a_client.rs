@@ -6,13 +6,13 @@
 //!
 //! 先启动 A2A Server（另开终端）：
 //! ```sh
-//! cargo run --example a2a_server --features a2a -p agent-base
+//! cargo run --example a2a_server --features a2a -p agent-runtime
 //! ```
 //!
 //! # 运行
 //!
 //! ```sh
-//! cargo run --example a2a_client --features a2a -p agent-base
+//! cargo run --example a2a_client --features a2a -p agent-runtime
 //! ```
 
 use dotenv::dotenv;

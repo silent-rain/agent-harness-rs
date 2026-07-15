@@ -16,7 +16,7 @@
 //!
 //! 运行：
 //! ```bash
-//! cargo run -p agent-base --example basic_agent_streaming
+//! cargo run -p agent-runtime --example basic_agent_streaming
 //! ```
 
 use std::{

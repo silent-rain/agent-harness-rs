@@ -1,6 +1,6 @@
 //! SDK 常用类型 Prelude
 //!
-//! 统一导出 `agent-base` 中最常用的类型，方便使用者一次性导入：
+//! 统一导出 `agent-runtime` 中最常用的类型，方便使用者一次性导入：
 //!
 //! ```rust,no_run
 //! use agent_base::prelude::*;

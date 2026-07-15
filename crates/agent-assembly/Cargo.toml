@@ -13,11 +13,11 @@ default = []
 
 [dependencies]
 # 内部依赖
-agent-base = { workspace = true, features = ["full"] }
+agent-runtime = { workspace = true, features = ["full"] }
 entity = { workspace = true }
 database = { workspace = true }
 
-# LLM 推理（rig-core 通过 agent-base 传递，此处直接引用用于 Planner 构建）
+# LLM 推理（rig-core 通过 agent-runtime 传递，此处直接引用用于 Planner 构建）
 rig-core = { workspace = true }
 
 # 异步运行时

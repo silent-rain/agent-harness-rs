@@ -13,7 +13,7 @@
 //! # 运行
 //!
 //! ```sh
-//! cargo run --example a2a_server --features a2a -p agent-base
+//! cargo run --example a2a_server --features a2a -p agent-runtime
 //! ```
 //!
 //! # 测试（另开终端）

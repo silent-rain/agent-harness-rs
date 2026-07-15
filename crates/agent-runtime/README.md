@@ -1,10 +1,10 @@
-# agent-base
+# agent-runtime
 
 智能体运行时基座库，以 `rig-core` 为核心，提供 Agent Runtime、Planner、Executor、Policy、Streaming 等核心能力。
 
 ## 定位
 
-`agent-base` 是 Agent Harness 的**运行时内核层**，定义了智能体的核心抽象与执行引擎。它不关心智能体"从哪里来"（数据库 / 配置文件），只关心智能体"如何运行"。
+`agent-runtime` 是 Agent Harness 的**运行时内核层**，定义了智能体的核心抽象与执行引擎。它不关心智能体"从哪里来"（数据库 / 配置文件），只关心智能体"如何运行"。
 
 ## 核心模块
 

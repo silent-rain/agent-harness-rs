@@ -75,7 +75,7 @@ use crate::{
 };
 /// LLM 推理智能体
 ///
-/// `agent-base` 的核心默认实现，承载 ReAct 循环：推理 → 工具 → 推理 → ... → 最终回答。
+/// `agent-runtime` 的核心默认实现，承载 ReAct 循环：推理 → 工具 → 推理 → ... → 最终回答。
 /// 通过组合 [`HookRegistry`] 与 `max_parallel_tools` 实现生命周期钩子、
 /// 并发限流。
 ///
@@ -145,7 +145,7 @@ impl LlmAgent {
     /// 传入；运行时可调字段（`max_turns` / `max_parallel_tools` 等）保持默认值，
     /// 由后续链式 setter 覆盖。
     ///
-    /// 仅供 `agent-base` crate 内部的 [`AgentBuilder`] 调用，
+    /// 仅供 `agent-runtime` crate 内部的 [`AgentBuilder`] 调用，
     /// 外部使用方应统一通过 [`AgentBuilder`] 装配 Agent。
     ///
     /// # Parameters

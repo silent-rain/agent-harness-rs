@@ -1,7 +1,7 @@
 //! Skill 安装包持久化抽象（线上模式专用）
 //!
-//! 定义 [`SkillPackageStore`] trait，将 agent-base 与具体存储实现（SeaORM / 内存）解耦。
-//! 真实实现位于 `agent-assembly::loader::skill::db_store`，agent-base 内仅提供
+//! 定义 [`SkillPackageStore`] trait，将 agent-runtime 与具体存储实现（SeaORM / 内存）解耦。
+//! 真实实现位于 `agent-assembly::loader::skill::db_store`，agent-runtime 内仅提供
 //! [`InMemorySkillPackageStore`] 用于单元测试与离线运行。
 //!
 //! ## 设计要点

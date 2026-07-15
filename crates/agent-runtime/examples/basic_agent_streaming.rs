@@ -1,7 +1,8 @@
-//! 基础智能体示例（仅 Rule）
+//! 基础智能体流式示例（仅 Rule）
 //!
-//! 展示 `agent-base` 最简的运行流程：仅装配规则（Rule），
-//! 调用真实 LLM 服务返回最终回答。
+//! 与 [`basic_agent`] 示例配置完全一致（Qwen-Image 2512 叙事提示词助手），
+//! 区别在于通过 [`Agent::run_stream`] 实时消费 [`AgentStreamEvent`]，
+//! 在控制台逐 token / 逐事件展示推理过程，最终拼接出完整回答。
 //!
 //! 模型配置从 workspace 根目录的 `.env` 文件读取，可参考 `.env.example`。
 //!
@@ -15,16 +16,21 @@
 //!
 //! 运行：
 //! ```bash
-//! cargo run -p agent-base --example basic_agent
+//! cargo run -p agent-runtime --example basic_agent_streaming
 //! ```
 
-use std::env;
+use std::{
+    env,
+    io::{self, Write},
+};
 
 use dotenv::dotenv;
+use futures::StreamExt;
 
 use agent_base::{
     error::AgentResult,
-    runtime::{Agent, AgentBuilder},
+    runtime::{Agent, AgentBuilder, AgentEventStream},
+    session::AgentStreamEvent,
     types::{
         rule::{RuleConfig, RuleSource},
         runtime::{AgentConfig, AgentDefinition, ModelConfig},
@@ -50,6 +56,11 @@ const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_MODEL: &str = "gpt-4o";
 const DEFAULT_PROVIDER: &str = "openai";
 const DEFAULT_TEMPERATURE: f64 = 0.7;
+
+/// 示例使用的会话标识。
+const SESSION_ID: &str = "basic-streaming-session-1";
+/// 示例使用的用户输入。
+const USER_INPUT: &str = "一个女孩在河边散步";
 
 /// 从环境变量加载 [`ModelBindingConfig`]。
 ///
@@ -81,9 +92,9 @@ fn load_model_binding_from_env() -> AgentResult<ModelConfig> {
     })
 }
 
-/// 创建基础智能体配置（绘画提示词助手）。
+/// 创建基础智能体配置（Qwen-Image 2512 叙事提示词助手）。
 ///
-/// `model_config` 字段从环境变量读取，便于在不修改示例代码的前提下切换真实模型。
+/// 与 `basic_agent` 示例保持一致，便于对比同一智能体在阻塞与流式两种运行模式下的行为差异。
 fn create_basic_agent_config() -> AgentResult<AgentConfig> {
     Ok(AgentConfig {
         agent_definition: AgentDefinition {
@@ -124,18 +135,83 @@ fn create_basic_rules() -> Vec<RuleConfig> {
     }]
 }
 
-/// 运行基础智能体示例（仅 Rule）。
-async fn run_basic_agent() -> AgentResult<String> {
+/// 消费 [`AgentEventStream`] 并实时打印事件，返回拼接后的最终回答。
+///
+/// # 事件语义
+///
+/// `agent-runtime` 的事件流中存在两类与"答案"相关的事件，二者职责不同：
+///
+/// - [`AgentStreamEvent::TextDelta`]：LLM 原始 token 流，**真正的逐 token 流**。
+///   `ModelCaller` 每收到一段 `StreamChunk::TextDelta` 就立即发布一条。
+/// - [`AgentStreamEvent::Answer`]：运行终止时一次性发出的**整段终答镜像**，
+///   每次运行至多一条，主要用于会话落库与 `finish_reason: stop` 终止映射。
+///
+/// 因此本示例使用 `TextDelta` 做逐 token 实时输出与累积；`Answer` 仅作为
+/// 终段确认信号，不再重复累积，以免最终回答出现一倍冗余。
+///
+/// # Parameters
+///
+/// * `stream` - 由 [`Agent::run_stream`] 返回的事件流。
+///
+/// # Returns
+///
+/// 通过累积 [`AgentStreamEvent::TextDelta`] 拼接得到的最终回答文本。
+async fn consume_stream(mut stream: AgentEventStream) -> String {
+    let mut final_answer = String::new();
+    let mut stdout = io::stdout();
+
+    while let Some(event) = stream.next().await {
+        match event {
+            AgentStreamEvent::RunStarted {
+                run_id, agent_name, ..
+            } => {
+                println!("🚀 运行开始: run_id={run_id}, agent={agent_name}");
+            }
+            AgentStreamEvent::StepStarted { step, .. } => {
+                println!("\n📝 步骤 {step} 开始");
+            }
+            AgentStreamEvent::ReasoningDelta { delta, .. } => {
+                print!("🧠 {delta}");
+                let _ = stdout.flush();
+            }
+            // 真正的逐 token 流：用于实时打印与累积最终答案
+            AgentStreamEvent::TextDelta { delta, .. } => {
+                final_answer.push_str(&delta);
+                print!("{delta}");
+                let _ = stdout.flush();
+            }
+            // 整段终答镜像：仅打印一条结束分隔线，不再累积避免重复
+            AgentStreamEvent::Answer { .. } => {
+                println!("\n— 终段镜像已就位 —");
+            }
+            AgentStreamEvent::RunFinished {
+                total_steps,
+                finish_reason,
+                ..
+            } => {
+                println!(
+                    "\n✅ 运行完成: total_steps={total_steps}, finish_reason={finish_reason:?}"
+                );
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    final_answer
+}
+
+/// 运行基础智能体流式示例（仅 Rule）。
+async fn run_basic_agent_streaming() -> AgentResult<String> {
     let agent_config = create_basic_agent_config()?;
 
     let agent = AgentBuilder::new(agent_config)?
         .add_rules(create_basic_rules())
         .build()
         .await?;
-    Ok(agent
-        .run("test-session-1", "一个女孩在河边散步")
-        .await?
-        .final_answer)
+
+    let stream = agent.run_stream(SESSION_ID, USER_INPUT)?;
+    Ok(consume_stream(stream).await)
 }
 
 #[tokio::main]
@@ -145,16 +221,16 @@ async fn main() -> AgentResult<()> {
 
     tracing_subscriber::fmt()
         .with_ansi(true)
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(tracing::Level::INFO)
         .with_level(true)
         .with_file(true)
         .with_line_number(true)
         .with_target(false)
         .init();
 
-    println!("=== 基础智能体示例 ===");
-    let result = run_basic_agent().await?;
-    println!("基础模式运行结果: {}", result);
-    println!("=== 示例完成 ===");
+    println!("=== 基础智能体流式示例 ===");
+    let final_answer = run_basic_agent_streaming().await?;
+    println!("\n--- 最终回答 ---\n{final_answer}");
+    println!("\n=== 示例完成 ===");
     Ok(())
 }
