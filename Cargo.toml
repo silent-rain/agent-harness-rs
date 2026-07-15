@@ -74,7 +74,7 @@ nject = "0.5"
 # AI
 rig-core = "0.40"
 async-openai = "0.41"
-rmcp = "2.2"
+rmcp = "1.8"
 a2a-rs-core = "1.0"
 a2a-rs-server = "1.0"
 a2a-rs-client = "1.0"
