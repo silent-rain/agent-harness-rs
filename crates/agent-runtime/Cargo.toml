@@ -23,7 +23,6 @@ sub_agent = []
 # 启用 MCP 工具调用支持（SSE / HTTP / stdio 传输）
 mcp = [
     "dep:rmcp",
-    "rig-core/rmcp",
     "rmcp/client",
     "rmcp/client-side-sse",
     "rmcp/transport-streamable-http-client",

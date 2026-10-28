@@ -25,7 +25,7 @@ impl AgentConfigController {
         Query(req): Query<GetAgentConfigsReq>,
     ) -> Responder<GetAgentConfigsResp> {
         let service: AgentConfigService = provider.provide();
-        let (results, total) = service.list(ctx.get_user_id(), req).await?;
+        let (results, total) = service.list(ctx.user_id(), req).await?;
 
         let resp = Response::data_list(results, total).to_json()?;
         Ok(resp)
@@ -38,7 +38,7 @@ impl AgentConfigController {
         Query(req): Query<GetAgentConfigReq>,
     ) -> Responder<GetAgentConfigResp> {
         let service: AgentConfigService = provider.provide();
-        let result = service.info(ctx.get_user_id(), req).await?;
+        let result = service.info(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -51,7 +51,7 @@ impl AgentConfigController {
         Json(req): Json<CreateAgentConfigReq>,
     ) -> Responder<CreateAgentConfigResp> {
         let service: AgentConfigService = provider.provide();
-        let result = service.create(ctx.get_user_id(), req).await?;
+        let result = service.create(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -64,7 +64,7 @@ impl AgentConfigController {
         Json(req): Json<UpdateAgentConfigReq>,
     ) -> Responder<()> {
         let service: AgentConfigService = provider.provide();
-        let _result = service.update(ctx.get_user_id(), req).await?;
+        let _result = service.update(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -76,7 +76,7 @@ impl AgentConfigController {
         Json(req): Json<DeleteAgentConfigReq>,
     ) -> Responder<()> {
         let service: AgentConfigService = provider.provide();
-        let _result = service.delete(ctx.get_user_id(), req).await?;
+        let _result = service.delete(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }

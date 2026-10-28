@@ -1,9 +1,6 @@
 //! 工具集
-#![allow(unused)]
-use sea_orm::{
-    ConnectionTrait, DatabaseBackend, Iden,
-    sea_query::{Index, IntoIden, IntoIndexColumn, IntoTableRef},
-};
+use sea_orm::sea_query::{Index, IntoIden, IntoIndexColumn, IntoTableRef};
+use sea_orm::{ConnectionTrait, DatabaseBackend, Iden};
 use sea_orm_migration::{DbErr, SchemaManager};
 
 /// 设置索引
@@ -91,35 +88,64 @@ where
 
     let table_name = table.to_string();
     let updated_at_column = updated_at_column.to_string();
+    let trigger_name = format!("trg_update_{}_updated_at", table_name);
 
-    let trigger_sql = match db.get_database_backend() {
-        DatabaseBackend::MySql | DatabaseBackend::Postgres => {
-            format!(
+    match db.get_database_backend() {
+        DatabaseBackend::Postgres => {
+            // Postgres 不支持 `CREATE TRIGGER IF NOT EXISTS`，且触发器不能 inline body，
+            // 必须引用已存在的函数。因此先幂等创建函数，再 DROP 已存在触发器后重建。
+            // 注：触发器函数固定更新 `updated_at` 列，要求目标表时间列名为 `updated_at`。
+            db.execute_unprepared(
+                r#"CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
+                   BEGIN
+                       NEW.updated_at = NOW();
+                       RETURN NEW;
+                   END;
+                   $$ LANGUAGE plpgsql;"#,
+            )
+            .await?;
+
+            db.execute_unprepared(&format!(
+                "DROP TRIGGER IF EXISTS {} ON {};",
+                trigger_name, table_name
+            ))
+            .await?;
+
+            db.execute_unprepared(&format!(
+                "CREATE TRIGGER {} BEFORE UPDATE ON {} FOR EACH ROW EXECUTE FUNCTION set_updated_at();",
+                trigger_name, table_name
+            ))
+            .await?;
+        }
+        DatabaseBackend::MySql => {
+            db.execute_unprepared(&format!(
                 r#"
-                CREATE TRIGGER IF NOT EXISTS trg_update_{}_updated_at
+                CREATE TRIGGER IF NOT EXISTS {}
                 BEFORE UPDATE ON {}
                 FOR EACH ROW
                 BEGIN
                     SET NEW.{} = CURRENT_TIMESTAMP;
                 END;
                 "#,
-                table_name, table_name, updated_at_column
-            )
+                trigger_name, table_name, updated_at_column
+            ))
+            .await?;
         }
-        DatabaseBackend::Sqlite => {
-            format!(
+        _ => {
+            // SQLite 不支持直接修改 NEW，需通过 UPDATE 语句回写
+            db.execute_unprepared(&format!(
                 r#"
-                CREATE TRIGGER IF NOT EXISTS trg_update_{}_updated_at
+                CREATE TRIGGER IF NOT EXISTS {}
                 BEFORE UPDATE ON {}
                 BEGIN
                     UPDATE {} SET {} = CURRENT_TIMESTAMP WHERE id = NEW.id;
                 END;
                 "#,
-                table_name, table_name, table_name, updated_at_column
-            )
+                trigger_name, table_name, table_name, updated_at_column
+            ))
+            .await?;
         }
-    };
+    }
 
-    db.execute_unprepared(&trigger_sql).await?;
     Ok(())
 }

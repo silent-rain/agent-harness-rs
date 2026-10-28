@@ -6,8 +6,8 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, TransactionTrait,
 };
 
-use entity::agent::{A2aServiceRel, a2a_service_registry, a2a_service_rel};
 use database::Pagination;
+use entity::agent::{A2aServiceRel, a2a_service_registry, a2a_service_rel};
 use inject::PrimaryDb;
 
 use crate::dto::a2a_service_rel::GetA2aServiceRelsReq;

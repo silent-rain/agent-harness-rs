@@ -30,7 +30,7 @@ impl AgentRunController {
         Json(req): Json<AgentRunReq>,
     ) -> Responder<ChatCompletion> {
         let service: AgentRunService = provider.provide();
-        let resp = service.run(ctx.get_user_id(), req).await?;
+        let resp = service.run(ctx.user_id(), req).await?;
         Ok(Response::data(resp).to_json()?)
     }
 
@@ -43,7 +43,7 @@ impl AgentRunController {
         Json(req): Json<AgentRunReq>,
     ) -> Result<Sse<impl futures::Stream<Item = Result<Event, Infallible>>>, ResponseErr> {
         let service: AgentRunService = provider.provide();
-        let sse_stream = service.run_stream(ctx.get_user_id(), req).await?;
+        let sse_stream = service.run_stream(ctx.user_id(), req).await?;
         Ok(Sse::new(sse_stream))
     }
 
@@ -56,7 +56,7 @@ impl AgentRunController {
         Json(req): Json<AgentDebugRunReq>,
     ) -> Responder<RunOutcome> {
         let service: AgentRunService = provider.provide();
-        let outcome = service.debug_run(ctx.get_user_id(), req).await?;
+        let outcome = service.debug_run(ctx.user_id(), req).await?;
         Ok(Response::data(outcome).to_json()?)
     }
 
@@ -69,7 +69,7 @@ impl AgentRunController {
         Json(req): Json<AgentDebugRunReq>,
     ) -> Result<Sse<impl futures::Stream<Item = Result<Event, Infallible>>>, ResponseErr> {
         let service: AgentRunService = provider.provide();
-        let sse_stream = service.debug_run_stream(ctx.get_user_id(), req).await?;
+        let sse_stream = service.debug_run_stream(ctx.user_id(), req).await?;
 
         Ok(Sse::new(sse_stream))
     }

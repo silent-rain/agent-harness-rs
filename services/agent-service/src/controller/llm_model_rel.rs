@@ -25,7 +25,7 @@ impl LlmModelRelController {
         Query(req): Query<GetLlmModelRelsReq>,
     ) -> Responder<GetLlmModelRelsResp> {
         let service: LlmModelRelService = provider.provide();
-        let (results, total) = service.list(ctx.get_user_id(), req).await?;
+        let (results, total) = service.list(ctx.user_id(), req).await?;
 
         let resp = Response::data_list(results, total).to_json()?;
         Ok(resp)
@@ -38,7 +38,7 @@ impl LlmModelRelController {
         Json(req): Json<BatchSaveLlmModelRelsReq>,
     ) -> Responder<BatchSaveLlmModelRelsResp> {
         let service: LlmModelRelService = provider.provide();
-        let result = service.batch_save(ctx.get_user_id(), req).await?;
+        let result = service.batch_save(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -51,7 +51,7 @@ impl LlmModelRelController {
         Json(req): Json<UpdateLlmModelRelReq>,
     ) -> Responder<()> {
         let service: LlmModelRelService = provider.provide();
-        let _result = service.update(ctx.get_user_id(), req).await?;
+        let _result = service.update(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -63,7 +63,7 @@ impl LlmModelRelController {
         Json(req): Json<UpdateLlmModelRelEnabledReq>,
     ) -> Responder<()> {
         let service: LlmModelRelService = provider.provide();
-        let _result = service.update_enabled(ctx.get_user_id(), req).await?;
+        let _result = service.update_enabled(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }

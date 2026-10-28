@@ -26,7 +26,7 @@ impl CommandRegistryController {
         Query(req): Query<GetCommandRegistriesReq>,
     ) -> Responder<GetCommandRegistriesResp> {
         let service: CommandRegistryService = provider.provide();
-        let (results, total) = service.list(ctx.get_user_id(), req).await?;
+        let (results, total) = service.list(ctx.user_id(), req).await?;
 
         let resp = Response::data_list(results, total).to_json()?;
         Ok(resp)
@@ -39,7 +39,7 @@ impl CommandRegistryController {
         Query(req): Query<GetCommandRegistryReq>,
     ) -> Responder<GetCommandRegistryResp> {
         let service: CommandRegistryService = provider.provide();
-        let result = service.info(ctx.get_user_id(), req).await?;
+        let result = service.info(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -52,7 +52,7 @@ impl CommandRegistryController {
         Json(req): Json<CreateCommandRegistryReq>,
     ) -> Responder<CreateCommandRegistryResp> {
         let service: CommandRegistryService = provider.provide();
-        let result = service.create(ctx.get_user_id(), req).await?;
+        let result = service.create(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -65,7 +65,7 @@ impl CommandRegistryController {
         Json(req): Json<UpdateCommandRegistryReq>,
     ) -> Responder<()> {
         let service: CommandRegistryService = provider.provide();
-        let _result = service.update(ctx.get_user_id(), req).await?;
+        let _result = service.update(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -77,7 +77,7 @@ impl CommandRegistryController {
         Json(req): Json<UpdateCommandRegistryEnabledReq>,
     ) -> Responder<()> {
         let service: CommandRegistryService = provider.provide();
-        let _result = service.update_enabled(ctx.get_user_id(), req).await?;
+        let _result = service.update_enabled(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -89,7 +89,7 @@ impl CommandRegistryController {
         Json(req): Json<DeleteCommandRegistryReq>,
     ) -> Responder<()> {
         let service: CommandRegistryService = provider.provide();
-        let _result = service.delete(ctx.get_user_id(), req).await?;
+        let _result = service.delete(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }

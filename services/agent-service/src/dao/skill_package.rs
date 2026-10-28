@@ -6,8 +6,8 @@ use sea_orm::{
     QuerySelect, QueryTrait,
 };
 
-use entity::agent::{SkillPackage as SkillPackageEntity, skill_package};
 use database::Pagination;
+use entity::agent::{SkillPackage as SkillPackageEntity, skill_package};
 use inject::PrimaryDb;
 
 use crate::dto::skill_package::GetSkillPackagesReq;

@@ -6,8 +6,8 @@ use sea_orm::{
     QuerySelect, QueryTrait, TransactionTrait,
 };
 
-use entity::agent::{ToolRel, tool_rel};
 use database::Pagination;
+use entity::agent::{ToolRel, tool_rel};
 use inject::PrimaryDb;
 
 use crate::dto::tool_rel::GetToolRelsReq;

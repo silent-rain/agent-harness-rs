@@ -6,8 +6,8 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait,
 };
 
-use entity::agent::{SubAgentRel, agent_config, sub_agent_rel};
 use database::Pagination;
+use entity::agent::{SubAgentRel, agent_config, sub_agent_rel};
 use inject::PrimaryDb;
 
 use crate::dto::sub_agent_rel::GetSubAgentRelsReq;

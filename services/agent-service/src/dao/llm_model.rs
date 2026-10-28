@@ -6,8 +6,8 @@ use sea_orm::{
     QuerySelect, QueryTrait, Set,
 };
 
-use entity::agent::{LlmModel, llm_model};
 use database::Pagination;
+use entity::agent::{LlmModel, llm_model};
 use inject::PrimaryDb;
 
 use crate::dto::llm_model::GetLlmModelsReq;

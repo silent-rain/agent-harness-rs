@@ -6,8 +6,8 @@ use sea_orm::{
     QuerySelect, QueryTrait, Set,
 };
 
-use entity::agent::{AgentConfig, agent_config};
 use database::Pagination;
+use entity::agent::{AgentConfig, agent_config};
 use inject::PrimaryDb;
 
 use crate::dto::agent_config::GetAgentConfigsReq;

@@ -25,7 +25,7 @@ impl McpServiceRelController {
         Query(req): Query<GetMcpServiceRelsReq>,
     ) -> Responder<GetMcpServiceRelsResp> {
         let service: McpServiceRelService = provider.provide();
-        let (results, total) = service.list(ctx.get_user_id(), req).await?;
+        let (results, total) = service.list(ctx.user_id(), req).await?;
 
         let resp = Response::data_list(results, total).to_json()?;
         Ok(resp)
@@ -38,7 +38,7 @@ impl McpServiceRelController {
         Json(req): Json<AddMcpServiceRelReq>,
     ) -> Responder<()> {
         let service: McpServiceRelService = provider.provide();
-        let _result = service.add(ctx.get_user_id(), req).await?;
+        let _result = service.add(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -50,7 +50,7 @@ impl McpServiceRelController {
         Json(req): Json<UpdateMcpServiceRelReq>,
     ) -> Responder<()> {
         let service: McpServiceRelService = provider.provide();
-        let _result = service.update(ctx.get_user_id(), req).await?;
+        let _result = service.update(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -62,7 +62,7 @@ impl McpServiceRelController {
         Json(req): Json<UpdateMcpServiceRelEnabledReq>,
     ) -> Responder<()> {
         let service: McpServiceRelService = provider.provide();
-        let _result = service.update_enabled(ctx.get_user_id(), req).await?;
+        let _result = service.update_enabled(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -74,7 +74,7 @@ impl McpServiceRelController {
         Json(req): Json<DeleteMcpServiceRelReq>,
     ) -> Responder<()> {
         let service: McpServiceRelService = provider.provide();
-        let _result = service.delete(ctx.get_user_id(), req).await?;
+        let _result = service.delete(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }

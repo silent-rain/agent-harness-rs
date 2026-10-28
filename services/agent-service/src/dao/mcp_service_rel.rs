@@ -6,8 +6,8 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, Set,
 };
 
-use entity::agent::{McpServiceRel, mcp_service_registry, mcp_service_rel};
 use database::Pagination;
+use entity::agent::{McpServiceRel, mcp_service_registry, mcp_service_rel};
 use inject::PrimaryDb;
 
 use crate::dto::mcp_service_rel::GetMcpServiceRelsReq;

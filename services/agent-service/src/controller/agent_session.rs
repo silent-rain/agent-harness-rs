@@ -25,7 +25,7 @@ impl AgentSessionController {
         Json(req): Json<SessionCancelReq>,
     ) -> Responder<SessionCancelResp> {
         let service: AgentSessionService = provider.provide();
-        let user_id = ctx.get_user_id().to_string();
+        let user_id = ctx.user_id().to_string();
         let resp = service.cancel(&user_id, &req.session_id).await?;
         Ok(Response::data(resp).to_json()?)
     }
@@ -39,7 +39,7 @@ impl AgentSessionController {
         Json(req): Json<SessionStatusReq>,
     ) -> Responder<SessionStatusResp> {
         let service: AgentSessionService = provider.provide();
-        let user_id = ctx.get_user_id().to_string();
+        let user_id = ctx.user_id().to_string();
         let resp = service.status(&user_id, &req.session_id).await?;
         Ok(Response::data(resp).to_json()?)
     }
@@ -53,7 +53,7 @@ impl AgentSessionController {
         Json(req): Json<InjectMessageReq>,
     ) -> Responder<InjectMessageResp> {
         let service: AgentSessionService = provider.provide();
-        let user_id = ctx.get_user_id().to_string();
+        let user_id = ctx.user_id().to_string();
         let resp = service.inject_message(&user_id, req).await?;
         Ok(Response::data(resp).to_json()?)
     }

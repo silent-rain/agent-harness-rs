@@ -26,7 +26,7 @@ impl SkillPackageController {
         Query(req): Query<GetSkillPackagesReq>,
     ) -> Responder<GetSkillPackagesResp> {
         let service: SkillPackageService = provider.provide();
-        let (results, total) = service.list(ctx.get_user_id(), req).await?;
+        let (results, total) = service.list(ctx.user_id(), req).await?;
 
         let resp = Response::data_list(results, total).to_json()?;
         Ok(resp)
@@ -39,7 +39,7 @@ impl SkillPackageController {
         Query(req): Query<GetSkillPackageReq>,
     ) -> Responder<GetSkillPackageResp> {
         let service: SkillPackageService = provider.provide();
-        let result = service.info(ctx.get_user_id(), req).await?;
+        let result = service.info(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -52,7 +52,7 @@ impl SkillPackageController {
         Json(req): Json<CreateSkillPackageReq>,
     ) -> Responder<CreateSkillPackageResp> {
         let service: SkillPackageService = provider.provide();
-        let result = service.create(ctx.get_user_id(), req).await?;
+        let result = service.create(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -65,7 +65,7 @@ impl SkillPackageController {
         Json(req): Json<UpdateSkillPackageStatusReq>,
     ) -> Responder<()> {
         let service: SkillPackageService = provider.provide();
-        let _result = service.update_status(ctx.get_user_id(), req).await?;
+        let _result = service.update_status(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -77,7 +77,7 @@ impl SkillPackageController {
         Json(req): Json<DeleteSkillPackageReq>,
     ) -> Responder<()> {
         let service: SkillPackageService = provider.provide();
-        let _result = service.delete(ctx.get_user_id(), req).await?;
+        let _result = service.delete(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }

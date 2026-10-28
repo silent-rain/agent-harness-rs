@@ -25,7 +25,7 @@ impl SkillRelController {
         Query(req): Query<GetSkillRelsReq>,
     ) -> Responder<GetSkillRelsResp> {
         let service: SkillRelService = provider.provide();
-        let (results, total) = service.list(ctx.get_user_id(), req).await?;
+        let (results, total) = service.list(ctx.user_id(), req).await?;
 
         let resp = Response::data_list(results, total).to_json()?;
         Ok(resp)
@@ -38,7 +38,7 @@ impl SkillRelController {
         Query(req): Query<GetSkillRelReq>,
     ) -> Responder<GetSkillRelResp> {
         let service: SkillRelService = provider.provide();
-        let result = service.info(ctx.get_user_id(), req).await?;
+        let result = service.info(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -51,7 +51,7 @@ impl SkillRelController {
         Json(req): Json<CreateSkillRelReq>,
     ) -> Responder<CreateSkillRelResp> {
         let service: SkillRelService = provider.provide();
-        let result = service.create(ctx.get_user_id(), req).await?;
+        let result = service.create(ctx.user_id(), req).await?;
 
         let resp = Response::data(result).to_json()?;
         Ok(resp)
@@ -64,7 +64,7 @@ impl SkillRelController {
         Json(req): Json<UpdateSkillRelReq>,
     ) -> Responder<()> {
         let service: SkillRelService = provider.provide();
-        let _result = service.update(ctx.get_user_id(), req).await?;
+        let _result = service.update(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -76,7 +76,7 @@ impl SkillRelController {
         Json(req): Json<UpdateSkillRelEnabledReq>,
     ) -> Responder<()> {
         let service: SkillRelService = provider.provide();
-        let _result = service.update_enabled(ctx.get_user_id(), req).await?;
+        let _result = service.update_enabled(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }
@@ -88,7 +88,7 @@ impl SkillRelController {
         Json(req): Json<DeleteSkillRelReq>,
     ) -> Responder<()> {
         let service: SkillRelService = provider.provide();
-        let _result = service.delete(ctx.get_user_id(), req).await?;
+        let _result = service.delete(ctx.user_id(), req).await?;
 
         Ok(Response::ok())
     }

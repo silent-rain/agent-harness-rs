@@ -6,8 +6,8 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, TransactionTrait,
 };
 
-use entity::agent::{CommandRel, command_registry, command_rel};
 use database::Pagination;
+use entity::agent::{CommandRel, command_registry, command_rel};
 use inject::PrimaryDb;
 
 use crate::dto::command_rel::GetCommandRelsReq;

@@ -6,8 +6,8 @@ use sea_orm::{
     QuerySelect, QueryTrait,
 };
 
-use entity::agent::{ToolRegistry, tool_registry};
 use database::Pagination;
+use entity::agent::{ToolRegistry, tool_registry};
 use inject::PrimaryDb;
 
 use crate::dto::tool_registry::GetToolRegistriesReq;

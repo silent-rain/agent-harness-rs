@@ -6,8 +6,8 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, TransactionTrait,
 };
 
-use entity::agent::{RuleRel, rule_registry, rule_rel};
 use database::Pagination;
+use entity::agent::{RuleRel, rule_registry, rule_rel};
 use inject::PrimaryDb;
 
 use crate::dto::rule_rel::GetRuleRelsReq;
