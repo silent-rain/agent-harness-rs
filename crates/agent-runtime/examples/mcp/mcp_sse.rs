@@ -184,7 +184,7 @@ async fn scenario_manual_registry() -> AgentResult<()> {
     println!("已连接服务数: {}", registry.connection_count());
 
     // 查看服务描述信息（通过 MCP 握手获取）
-    if let Ok(desc) = registry.get_service_description("remote-sse-service") {
+    if let Ok(desc) = registry.service_description("remote-sse-service") {
         println!("服务名称: {}", desc.server_name);
         println!("服务版本: {}", desc.server_version);
         if let Some(instructions) = &desc.instructions {
@@ -192,15 +192,17 @@ async fn scenario_manual_registry() -> AgentResult<()> {
         }
     }
 
-    // 查看可用工具
-    let tools = registry.list_all_enabled_tools().await?;
-    println!("可用工具数量: {}", tools.len());
-    for (_, tool) in &tools {
-        println!(
-            "  - {} : {}",
-            tool.name,
-            tool.description.as_deref().unwrap_or("无描述")
-        );
+    // 查看可用工具（已按配置的启用范围过滤）
+    for service_name in registry.service_names() {
+        let tools = registry.tools_of(service_name).await?;
+        println!("[{service_name}] 可用工具 {} 个:", tools.len());
+        for tool in &tools {
+            println!(
+                "  - {} : {}",
+                tool.name,
+                tool.description.as_deref().unwrap_or("无描述")
+            );
+        }
     }
 
     let agent = AgentBuilder::new(create_agent_config()?)?

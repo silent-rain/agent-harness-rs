@@ -3,7 +3,7 @@
 //! 在指定目录中按文件名模式搜索文件。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AgentResult, Error};
@@ -65,7 +65,11 @@ impl Tool for SearchFilesTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let max_results = args.max_results.unwrap_or(50);
         let pattern = args.pattern.to_lowercase();
         let mut matches: Vec<String> = Vec::new();

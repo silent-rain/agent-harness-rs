@@ -4,7 +4,8 @@
 //!
 //! 提供的主要内容：
 //! - [`LocalRuleLoader`] - 本地文件系统规则加载器
-//! - [`RuleListTool`] - 内置工具，列出当前已注入的规则
+//! - [`RuleListTool`] - 内置工具，列出当前已注入的规则摘要
+//! - [`RuleLoadTool`] - 内置工具，按名称加载单条规则的完整正文
 //!
 //! ## 设计说明
 //!
@@ -56,4 +57,4 @@ mod loader;
 mod tools;
 
 pub use loader::LocalRuleLoader;
-pub use tools::RuleListTool;
+pub use tools::{RuleListTool, RuleLoadTool};

@@ -1,13 +1,16 @@
 //! 内置工具集合
-use rig_core::tool::ToolDyn;
+use rig_core::tool::DynamicTool;
 
-use super::{DuckDuckGoTool, ListDirTool, ReadFileTool, RunCommandTool, SearchFilesTool};
+use super::{
+    DuckDuckGoTool, ListDirTool, ReadFileTool, RunCommandTool, SearchFilesTool,
+    rig_bridge::dynamic_tool,
+};
 
 /// 返回所有内置工具实例列表
 ///
 /// # Returns
 ///
-/// 已装箱的工具实例列表，可直接传入
+/// 已擦除为 [`DynamicTool`] 的工具实例列表，可直接传入
 /// [`crate::tool::ToolPool::register_many`] 或 `AgentBuilder::with_tools()`。
 ///
 /// # Examples
@@ -18,15 +21,15 @@ use super::{DuckDuckGoTool, ListDirTool, ReadFileTool, RunCommandTool, SearchFil
 ///
 /// let mut pool = ToolPool::new();
 /// pool.register_many(all_builtin_tools(), ToolSource::Builtin);
-/// let toolset = pool.into_contextual_toolset();
+/// let definitions = pool.tool_definitions();
 /// ```
-pub fn all_builtin_tools() -> Vec<Box<dyn ToolDyn>> {
+pub fn all_builtin_tools() -> Vec<DynamicTool> {
     vec![
-        Box::new(ListDirTool),
-        Box::new(ReadFileTool),
-        Box::new(SearchFilesTool),
-        Box::new(RunCommandTool),
-        Box::new(DuckDuckGoTool),
+        dynamic_tool(ListDirTool),
+        dynamic_tool(ReadFileTool),
+        dynamic_tool(SearchFilesTool),
+        dynamic_tool(RunCommandTool),
+        dynamic_tool(DuckDuckGoTool),
     ]
 }
 
@@ -40,7 +43,10 @@ mod tests {
     /// [`crate::tool::ToolPool`].
     #[test]
     fn all_builtin_tools_contains_duckduckgo() {
-        let names: Vec<String> = all_builtin_tools().iter().map(|t| t.name()).collect();
+        let names: Vec<String> = all_builtin_tools()
+            .iter()
+            .map(|t| t.name().to_string())
+            .collect();
         assert!(
             names.iter().any(|n| n == "duckduckgo_search"),
             "duckduckgo_search must be registered, got: {names:?}"

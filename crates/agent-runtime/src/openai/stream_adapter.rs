@@ -40,7 +40,10 @@ pub const NUCLEUS_EVENT_PREFIX: &str = "nucleus";
 #[derive(Debug, Clone, PartialEq)]
 pub enum AdapterOutput {
     /// OpenAI 标准分片，写入 SSE 主流（`data: {chunk}`）
-    Chunk(ChatCompletionChunk),
+    ///
+    /// 装箱承载：`ChatCompletionChunk` 由 async-openai 定义、体积较大
+    /// （300+ 字节），装箱避免枚举整体尺寸被单个变体撑大。
+    Chunk(Box<ChatCompletionChunk>),
     /// nucleus 扩展事件（写入 SSE `event: <name>` + `data: <payload>`）
     Extension {
         /// 事件名（如 `nucleus.tool_call.started`）
@@ -118,10 +121,10 @@ impl OpenAIStreamAdapter {
             AgentStreamEvent::TextDelta { delta, .. } => {
                 let mut outputs = Vec::with_capacity(2);
                 if !self.role_emitted {
-                    outputs.push(AdapterOutput::Chunk(self.role_chunk()));
+                    outputs.push(AdapterOutput::Chunk(Box::new(self.role_chunk())));
                     self.role_emitted = true;
                 }
-                outputs.push(AdapterOutput::Chunk(self.content_chunk(delta)));
+                outputs.push(AdapterOutput::Chunk(Box::new(self.content_chunk(delta))));
                 outputs
             }
 
@@ -146,7 +149,9 @@ impl OpenAIStreamAdapter {
 
             AgentStreamEvent::RunFinished { finish_reason, .. } => {
                 vec![
-                    AdapterOutput::Chunk(self.finish_chunk(map_finish_reason(finish_reason))),
+                    AdapterOutput::Chunk(Box::new(
+                        self.finish_chunk(map_finish_reason(finish_reason)),
+                    )),
                     AdapterOutput::Done,
                 ]
             }
@@ -260,6 +265,8 @@ impl OpenAIStreamAdapter {
             usage: None,
             service_tier: None,
             system_fingerprint: None,
+            obfuscation: None,
+            moderation: None,
         }
     }
 
@@ -280,6 +287,8 @@ impl OpenAIStreamAdapter {
             usage: None,
             service_tier: None,
             system_fingerprint: None,
+            obfuscation: None,
+            moderation: None,
         }
     }
 }

@@ -31,27 +31,28 @@ use std::{
     sync::Arc,
 };
 
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::Error;
 use crate::skill::installer::{
     DbInstaller, InstallOutcome, LocalDirInstaller, SkillPackageMeta, SkillSource,
 };
-use crate::tool::{ContextualTool, ToolCallCtx};
+use rig_core::tool::{Tool, ToolContext};
+
+use crate::tool::ToolContextExt;
 
 /// 工具后端：本地目录 or 数据库
 ///
 /// 工具实例只能绑定其中一种后端，避免运行期判别开销。
 /// `user_id` / `agent_id` 不再存储在后端枚举中，而是在调用时从
-/// [`ToolCallCtx`] 动态获取，以支持多租户场景下同一工具实例被不同
+/// [`ToolContext`] 动态获取，以支持多租户场景下同一工具实例被不同
 /// 用户/智能体复用。
 #[derive(Clone)]
 pub enum SkillBackend {
     /// 本地模式：直接读写 `<skills_root>/<skill_code>/`
     Local(Arc<LocalDirInstaller>),
     /// 线上模式：通过 [`crate::skill::installer::SkillPackageStore`] 写 DB。
-    /// `user_id` / `agent_id` 在调用时从 [`ToolCallCtx`] 获取。
+    /// `user_id` / `agent_id` 在调用时从 [`ToolContext`] 获取。
     Db(Arc<DbInstaller>),
 }
 
@@ -79,7 +80,7 @@ impl SkillManagementTool {
     /// 创建线上模式工具
     ///
     /// `user_id` / `agent_id` 不在构造时绑定，而是在每次调用时从
-    /// [`ToolCallCtx`] 动态获取，支持同一工具实例被多个智能体复用。
+    /// [`ToolContext`] 动态获取，支持同一工具实例被多个智能体复用。
     ///
     /// # Parameters
     ///
@@ -112,14 +113,14 @@ impl SkillManagementTool {
     /// 解析并校验 source 字符串
     fn parse_source(&self, source: &str) -> Result<SkillSource, Error> {
         let parsed = SkillSource::parse(source).map_err(|e| Error::ToolExecution {
-            tool_name: <Self as ContextualTool>::NAME.to_string(),
+            tool_name: Self::NAME.to_string(),
             message: format!("解析安装来源失败: {e}"),
         })?;
         if let SkillSource::LocalDir(path) = &parsed
             && !self.is_path_allowed(path)
         {
             return Err(Error::ToolExecution {
-                tool_name: <Self as ContextualTool>::NAME.to_string(),
+                tool_name: Self::NAME.to_string(),
                 message: format!(
                     "安装路径 '{}' 不在受信任前缀白名单内（白名单为空表示工具未启用）",
                     path.display()
@@ -186,8 +187,7 @@ pub enum SkillManageOutput {
     },
 }
 
-#[async_trait]
-impl ContextualTool for SkillManagementTool {
+impl Tool for SkillManagementTool {
     const NAME: &'static str = "skill_manage";
 
     type Error = Error;
@@ -226,14 +226,15 @@ impl ContextualTool for SkillManagementTool {
 
     async fn call(
         &self,
-        ctx: ToolCallCtx<'_>,
+        ctx: &mut ToolContext,
         args: Self::Args,
     ) -> Result<Self::Output, Self::Error> {
-        let user_id: i64 = ctx
+        let run = ctx.agent_run()?;
+        let user_id: i64 = run
             .user_id
             .parse()
-            .map_err(|_| Error::Internal(format!("invalid user_id: {}", ctx.user_id)))?;
-        let agent_id = ctx.agent_id;
+            .map_err(|_| Error::Internal(format!("invalid user_id: {}", run.user_id)))?;
+        let agent_id = run.agent_id;
         match args {
             SkillManageArgs::Install { source, skill_code } => {
                 let parsed = self.parse_source(&source)?;
@@ -423,6 +424,7 @@ mod tests {
     use crate::session::AgentStreamEvent;
     use crate::skill::installer::InMemorySkillPackageStore;
     use crate::skill::installer::SkillPackageStore;
+    use crate::tool::{AgentRun, call_context};
     use tempfile::TempDir;
     use tokio::sync::mpsc;
 
@@ -436,20 +438,26 @@ mod tests {
         .unwrap();
     }
 
-    /// Build a dummy [`ToolCallCtx`] with the given `user_id` / `agent_id`.
-    fn make_ctx<'a>(
-        tx: &'a mpsc::Sender<AgentStreamEvent>,
-        user_id: &'a str,
+    /// 构造测试用 [`ToolContext`]（含给定 `user_id` / `agent_id`）。
+    fn make_ctx(tx: &mpsc::Sender<AgentStreamEvent>, user_id: &str, agent_id: i64) -> ToolContext {
+        call_context(
+            AgentRun::new("test-run", "test-session", agent_id, user_id),
+            0,
+            tx.clone(),
+        )
+        .expect("测试上下文构造失败")
+    }
+
+    /// 以给定身份调用工具（测试用）：装配上下文后走 rig 派发路径。
+    async fn call_with_ctx(
+        tool: &SkillManagementTool,
+        tx: &mpsc::Sender<AgentStreamEvent>,
+        user_id: &str,
         agent_id: i64,
-    ) -> ToolCallCtx<'a> {
-        ToolCallCtx {
-            run_id: "test-run",
-            step: 0,
-            session_id: "test-session",
-            events: tx,
-            user_id,
-            agent_id,
-        }
+        args: SkillManageArgs,
+    ) -> Result<SkillManageOutput, Error> {
+        let mut ctx = make_ctx(tx, user_id, agent_id);
+        Tool::call(tool, &mut ctx, args).await
     }
 
     #[tokio::test]
@@ -463,9 +471,11 @@ mod tests {
             .with_allowed_path_prefixes(vec![staging.path().to_path_buf()]);
 
         let (tx, _rx) = mpsc::channel(8);
-        let out = ContextualTool::call(
+        let out = call_with_ctx(
             &tool,
-            make_ctx(&tx, "0", 0),
+            &tx,
+            "0",
+            0,
             SkillManageArgs::Install {
                 source: staging.path().join("s").to_string_lossy().into_owned(),
                 skill_code: None,
@@ -481,7 +491,7 @@ mod tests {
             _ => panic!("unexpected output"),
         }
 
-        let listed = ContextualTool::call(&tool, make_ctx(&tx, "0", 0), SkillManageArgs::List {})
+        let listed = call_with_ctx(&tool, &tx, "0", 0, SkillManageArgs::List {})
             .await
             .unwrap();
         match listed {
@@ -502,9 +512,11 @@ mod tests {
         let local = Arc::new(LocalDirInstaller::new(skills_root.path()));
         let tool = SkillManagementTool::local(local);
         let (tx, _rx) = mpsc::channel(8);
-        let err = ContextualTool::call(
+        let err = call_with_ctx(
             &tool,
-            make_ctx(&tx, "0", 0),
+            &tx,
+            "0",
+            0,
             SkillManageArgs::Install {
                 source: staging.path().join("s").to_string_lossy().into_owned(),
                 skill_code: None,
@@ -526,9 +538,11 @@ mod tests {
             .with_allowed_path_prefixes(vec![staging.path().to_path_buf()]);
 
         let (tx, _rx) = mpsc::channel(8);
-        ContextualTool::call(
+        call_with_ctx(
             &tool,
-            make_ctx(&tx, "1", 100),
+            &tx,
+            "1",
+            100,
             SkillManageArgs::Install {
                 source: staging.path().join("s").to_string_lossy().into_owned(),
                 skill_code: None,
@@ -536,9 +550,11 @@ mod tests {
         )
         .await
         .unwrap();
-        let out = ContextualTool::call(
+        let out = call_with_ctx(
             &tool,
-            make_ctx(&tx, "1", 100),
+            &tx,
+            "1",
+            100,
             SkillManageArgs::Install {
                 source: staging.path().join("s").to_string_lossy().into_owned(),
                 skill_code: None,
@@ -563,9 +579,11 @@ mod tests {
             .with_allowed_path_prefixes(vec![staging.path().to_path_buf()]);
 
         let (tx, _rx) = mpsc::channel(8);
-        ContextualTool::call(
+        call_with_ctx(
             &tool,
-            make_ctx(&tx, "1", 100),
+            &tx,
+            "1",
+            100,
             SkillManageArgs::Install {
                 source: staging.path().join("s").to_string_lossy().into_owned(),
                 skill_code: None,
@@ -573,9 +591,11 @@ mod tests {
         )
         .await
         .unwrap();
-        let out = ContextualTool::call(
+        let out = call_with_ctx(
             &tool,
-            make_ctx(&tx, "1", 100),
+            &tx,
+            "1",
+            100,
             SkillManageArgs::Uninstall {
                 skill_code: "s".to_string(),
             },

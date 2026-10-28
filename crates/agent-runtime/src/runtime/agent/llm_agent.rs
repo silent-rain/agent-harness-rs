@@ -61,7 +61,7 @@ use crate::{
         llm::{ModelCaller, ToolExecutor},
     },
     session::{AgentEventStream, AgentStreamEvent, FinishReason},
-    tool::{ContextualToolSet, ToolPool},
+    tool::ToolPool,
     types::{
         agent_meta::AgentMeta,
         command::CommandConfig,
@@ -90,7 +90,8 @@ use crate::{
 ///
 /// 子智能体事件透传由 `DelegateSubAgentTool` 在工具执行点消费子 stream 并
 /// 包装为 [`AgentStreamEvent::SubAgentEvent`] 写入父 sender 完成。父 sender / `run_id`
-/// 通过借用语义的 [`crate::tool::ToolCallCtx`] 在每次工具调用点下发，无需任何共享可变态。
+/// 通过每次调用装配的 [`ToolContext`](rig_core::tool::ToolContext) 下发
+/// （身份走 inbound、事件通道走 scope），无需任何共享可变态。
 #[derive(Clone)]
 pub struct LlmAgent {
     /// 智能体名称（用于日志、事件标识、组合场景）
@@ -528,15 +529,13 @@ impl LlmAgent {
         self.emit(events, event).await
     }
 
-    /// 基于本次运行的 events 通道与已派生的 toolset 构建 ModelCaller
+    /// 基于本次运行的 events 通道构建 ModelCaller
     fn build_model_caller(
         &self,
         events: mpsc::Sender<AgentStreamEvent>,
-        toolset: Arc<ContextualToolSet>,
         run_config: RunConfig,
     ) -> Arc<ModelCaller> {
         let tool_executor = Arc::new(ToolExecutor::new(
-            Arc::clone(&toolset),
             events.clone(),
             self.services.clone(),
             Arc::clone(&self.hooks),
@@ -697,7 +696,7 @@ impl LlmAgent {
 
         info!(run_id = %run_id, step = step, "开始最终总结");
 
-        let toolset = ContextualToolSet::default();
+        let toolset = ToolPool::new();
 
         let summary_turn = match model_caller
             .call(run_id, step, messages, &toolset, session_id)
@@ -811,17 +810,25 @@ impl LlmAgent {
     /// 将 `step_usage` 累加到 `current` 上。如果 `current` 为 `None`，
     /// 则直接返回 `step_usage` 的克隆。
     fn accumulate_usage(current: Option<Usage>, step_usage: &Usage) -> Usage {
-        match current {
-            None => *step_usage,
-            Some(mut acc) => {
-                acc.input_tokens += step_usage.input_tokens;
-                acc.output_tokens += step_usage.output_tokens;
-                acc.total_tokens += step_usage.total_tokens;
-                acc.cached_input_tokens += step_usage.cached_input_tokens;
-                acc.cache_creation_input_tokens += step_usage.cache_creation_input_tokens;
-                acc
+        // rig-core 0.45 的 Usage 字段均为 Option（provider 未上报时为空），
+        // 累加时把「双方都为空」保持为 None，其余按 0 参与求和。
+        fn add(left: Option<u64>, right: Option<u64>) -> Option<u64> {
+            match (left, right) {
+                (None, None) => None,
+                (left, right) => Some(left.unwrap_or(0) + right.unwrap_or(0)),
             }
         }
+
+        let mut acc = current.unwrap_or_default();
+        acc.input_tokens = add(acc.input_tokens, step_usage.input_tokens);
+        acc.output_tokens = add(acc.output_tokens, step_usage.output_tokens);
+        acc.total_tokens = add(acc.total_tokens, step_usage.total_tokens);
+        acc.cached_input_tokens = add(acc.cached_input_tokens, step_usage.cached_input_tokens);
+        acc.cache_creation_input_tokens = add(
+            acc.cache_creation_input_tokens,
+            step_usage.cache_creation_input_tokens,
+        );
+        acc
     }
 
     /// 将 Agent 与 User 两个粒度的蒸馏记忆以 tool 消息形式注入上下文
@@ -1024,12 +1031,8 @@ impl LlmAgent {
             }
         };
 
-        let toolset = Arc::new(self.tool_pool.into_contextual_toolset());
-        let model_caller = self.build_model_caller(
-            events.clone(),
-            Arc::clone(&toolset),
-            self.run_config.clone(),
-        );
+        let toolset = Arc::clone(&self.tool_pool);
+        let model_caller = self.build_model_caller(events.clone(), self.run_config.clone());
 
         // 委托内部 ReAct 循环；失败时降级为「空回答 + Error」
         info!(run_id = %run_id, session_id = session_id, agent_id = agent_id, user_id = user_id, "开始准备 ReAct 循环");
@@ -1157,7 +1160,7 @@ impl LlmAgent {
         agent_id: i64,
         max_turns: u32,
         mut messages: MessageContext,
-        toolset: Arc<ContextualToolSet>,
+        toolset: Arc<ToolPool>,
     ) -> AgentResult<LoopResult> {
         let mut step: u32 = 0;
         let mut accumulated_usage: Option<Usage> = None;
@@ -1367,12 +1370,8 @@ impl LlmAgent {
             }
         };
 
-        let toolset = Arc::new(self.tool_pool.into_contextual_toolset());
-        let model_caller = self.build_model_caller(
-            events.clone(),
-            Arc::clone(&toolset),
-            self.run_config.clone(),
-        );
+        let toolset = Arc::clone(&self.tool_pool);
+        let model_caller = self.build_model_caller(events.clone(), self.run_config.clone());
 
         // StepStarted 事件（单轮，step = 1）
         let step: u32 = 1;

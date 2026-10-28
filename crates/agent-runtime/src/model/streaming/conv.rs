@@ -1,106 +1,102 @@
 //! rig 数据结构 → [`StreamChunk`] 的翻译工具
 //!
-//! 集中放置从 rig-core 类型到本 crate 类型擦除流式表示之间的转换逻辑，
-//! 避免散落在 `model/adapter.rs` 与各处 mock 中。
+//! 集中放置从 rig-core 0.45 流式事件 [`Item<StreamEvent>`] 到本 crate
+//! 类型擦除流式表示之间的转换逻辑，避免散落在 `model/adapter.rs` 与各处 mock 中。
 //!
 //! 提供的主要内容：
-//! - [`flatten_reasoning`]: 把 [`Reasoning`] 多段内容平铺为 `(id, text)`
-//! - [`map_streamed_content`]: rig 流式 token 类型擦除为 [`StreamChunk`]
+//! - [`map_stream_event`]: rig 流式事件类型擦除为 [`StreamChunk`]
 
-use rig_core::completion::message::{Reasoning, ReasoningContent};
-use rig_core::streaming::{StreamedAssistantContent, ToolCallDeltaContent};
+use rig_core::{
+    message::AssistantContent,
+    streaming::{Item, PartKind, StreamEvent},
+};
 
 use super::chunk::{StreamChunk, ToolCallChunkContent, ToolCallDelta};
 
-/// 把 [`Reasoning`] 的多段内容平铺为 `(id, text)`。
+/// 把 rig 流式事件 [`Item<StreamEvent>`] 类型擦除为 [`StreamChunk`]。
 ///
-/// 对加密 / 截断等专用变体降级为占位字符串。
+/// rig-core 0.45 的流以「part」为粒度：`Start` 声明部件、`Text` /
+/// `Reasoning` / `Arguments` 增长、`End` 定稿。这里把它们折叠成本仓库
+/// 既有的扁平分片语义：
+///
+/// - 文本 / 推理增量 → `TextDelta` / `ReasoningDelta`
+/// - 工具调用：`Start` 出名字增量、`Arguments` 出参数增量、`End` 出完整调用
+/// - 推理 `End` → `Reasoning` 整段（供落库去重，客户端已收到增量）
+///
+/// `internal_call_id` 取部件下标，用于把同一条工具调用的多个 delta 聚合。
 ///
 /// # Parameters
 ///
-/// * `reasoning` - rig-core 的多段推理结构
+/// * `item` - rig-core 的流式条目（事件或未建模载荷）
 ///
 /// # Returns
 ///
-/// `(reasoning.id, 拼接后的纯文本)`
-pub(crate) fn flatten_reasoning(reasoning: &Reasoning) -> (Option<String>, String) {
-    let mut buf = String::new();
-    for (idx, item) in reasoning.content.iter().enumerate() {
-        if idx > 0 {
-            buf.push('\n');
-        }
-        match item {
-            ReasoningContent::Text { text, .. } => buf.push_str(text),
-            ReasoningContent::Summary(text) => buf.push_str(text),
-            ReasoningContent::Encrypted(_) => buf.push_str("<encrypted reasoning>"),
-            ReasoningContent::Redacted { .. } => buf.push_str("<redacted reasoning>"),
-            _ => {}
-        }
-    }
-    (reasoning.id.clone(), buf)
-}
+/// 翻译后的 [`StreamChunk`]；对于无需透出的条目返回 `None`
+pub(crate) fn map_stream_event(item: &Item<StreamEvent>) -> Option<StreamChunk> {
+    let event = match item {
+        Item::Event(event) => event,
+        // Unknown 是 rig 未建模的 provider 原生输出项，不进入我们的流
+        Item::Unknown(_) => return None,
+    };
 
-/// 把 rig 的 [`StreamedAssistantContent`] 类型擦除为 [`StreamChunk`]。
-///
-/// `Final(R)` 仅承载 provider 私有结构，无法跨越类型擦除边界，
-/// 流末尾的 token 用量统一通过 `StreamChunk::Done` 事件透出。
-///
-/// # Parameters
-///
-/// * `content` - rig-core 的流式 assistant 内容分片
-///
-/// # Returns
-///
-/// 翻译后的 [`StreamChunk`]；对于无需透出的分片返回 `None`
-pub(crate) fn map_streamed_content<R>(content: StreamedAssistantContent<R>) -> Option<StreamChunk>
-where
-    R: Clone,
-{
-    match content {
-        StreamedAssistantContent::Text(text) => {
-            if text.text.is_empty() {
+    match event {
+        StreamEvent::Text { text, .. } => {
+            if text.is_empty() {
                 None
             } else {
-                Some(StreamChunk::TextDelta(text.text))
+                Some(StreamChunk::TextDelta(text.clone()))
             }
         }
-        StreamedAssistantContent::ToolCall {
-            tool_call,
-            internal_call_id,
-        } => Some(StreamChunk::ToolCall {
-            id: tool_call.id,
-            internal_call_id,
-            name: tool_call.function.name,
-            arguments: tool_call.function.arguments,
-        }),
-        StreamedAssistantContent::ToolCallDelta {
-            id,
-            internal_call_id,
-            content,
+        StreamEvent::Reasoning { text, .. } => {
+            if text.is_empty() {
+                None
+            } else {
+                Some(StreamChunk::ReasoningDelta {
+                    id: None,
+                    text: text.clone(),
+                })
+            }
+        }
+        StreamEvent::Start {
+            part,
+            kind: PartKind::ToolCall,
+            name,
         } => {
-            let content = match content {
-                ToolCallDeltaContent::Name(name) => ToolCallChunkContent::Name(name),
-                ToolCallDeltaContent::Delta(delta) => ToolCallChunkContent::ArgumentsDelta(delta),
-            };
+            let name = name.as_ref()?;
             Some(StreamChunk::ToolCallDelta(ToolCallDelta {
-                id,
-                internal_call_id,
-                content,
+                id: String::new(),
+                internal_call_id: part.index().to_string(),
+                content: ToolCallChunkContent::Name(name.to_string()),
             }))
         }
-        StreamedAssistantContent::Reasoning(reasoning) => {
-            let (id, text) = flatten_reasoning(&reasoning);
-            Some(StreamChunk::Reasoning { id, text })
+        StreamEvent::Arguments { part, json } => Some(StreamChunk::ToolCallDelta(ToolCallDelta {
+            id: String::new(),
+            internal_call_id: part.index().to_string(),
+            content: ToolCallChunkContent::ArgumentsDelta(json.clone()),
+        })),
+        StreamEvent::End {
+            part,
+            content: AssistantContent::ToolCall(call),
+        } => Some(StreamChunk::ToolCall {
+            id: call.id.to_string(),
+            internal_call_id: part.index().to_string(),
+            name: call.function.name.to_string(),
+            arguments: serde_json::Value::Object(call.function.arguments.clone()),
+        }),
+        StreamEvent::End {
+            content: AssistantContent::Reasoning(reasoning),
+            ..
+        } => {
+            if reasoning.text.is_empty() {
+                None
+            } else {
+                Some(StreamChunk::Reasoning {
+                    id: None,
+                    text: reasoning.text.clone(),
+                })
+            }
         }
-        StreamedAssistantContent::ReasoningDelta { id, reasoning } => {
-            Some(StreamChunk::ReasoningDelta {
-                id,
-                text: reasoning,
-            })
-        }
-        // Final 仅承载 provider 私有结构，对外只通过 Done 事件汇报结束
-        StreamedAssistantContent::Final(_) => None,
-        // Unknown 是 rig 未建模的 provider 原生输出项，仅透传供检查，不进入我们的流
-        StreamedAssistantContent::Unknown(_) => None,
+        // 其余部件的开始 / 结束（文本已增量透出、图片等模态不参与决策）忽略
+        StreamEvent::Start { .. } | StreamEvent::End { .. } => None,
     }
 }

@@ -170,7 +170,10 @@ pub fn validate_skill_zip(bytes: &[u8]) -> Result<String, Error> {
         let file = archive
             .by_index(i)
             .map_err(|e| Error::Internal(format!("zip read entry {i} failed: {e}")))?;
-        let name = file.name().to_string();
+        let name = file
+            .name()
+            .map_err(|e| Error::Internal(format!("zip entry {i} name read failed: {e}")))?
+            .to_string();
 
         // zip-slip defense
         let path = Path::new(&name);
@@ -273,7 +276,10 @@ fn unpack_zip_blocking(bytes: &[u8], dest: &Path, strip_top_level: bool) -> Resu
         let mut file = archive
             .by_index(i)
             .map_err(|e| Error::Internal(format!("zip read entry {i} failed: {e}")))?;
-        let raw_name = file.name().to_string().replace('\\', "/");
+        let raw_name = file
+            .name()
+            .map_err(|e| Error::Internal(format!("zip entry {i} name read failed: {e}")))?
+            .replace('\\', "/");
 
         // Skip top-level dir prefix if applicable
         let stripped = match &top_level {
@@ -328,7 +334,10 @@ fn detect_top_level<R: Read + std::io::Seek>(archive: &mut zip::ZipArchive<R>) -
         let Ok(file) = archive.by_index(i) else {
             return None;
         };
-        let name = file.name().replace('\\', "/");
+        let Ok(name) = file.name() else {
+            return None;
+        };
+        let name = name.replace('\\', "/");
         if name.is_empty() {
             continue;
         }

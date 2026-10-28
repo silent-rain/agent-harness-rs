@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{error::Error, types::command::CommandConfig};
@@ -97,7 +97,11 @@ impl Tool for CommandLoadTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let command_name = &args.command_name;
 
         // Look up command content from the in-memory registry
@@ -150,9 +154,12 @@ mod tests {
         let tool = CommandLoadTool::new(&commands);
 
         let result = tool
-            .call(CommandLoadArgs {
-                command_name: "gen-doc".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                CommandLoadArgs {
+                    command_name: "gen-doc".to_string(),
+                },
+            )
             .await
             .unwrap();
 
@@ -166,9 +173,12 @@ mod tests {
         let tool = CommandLoadTool::new(&commands);
 
         let result = tool
-            .call(CommandLoadArgs {
-                command_name: "gen-test".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                CommandLoadArgs {
+                    command_name: "gen-test".to_string(),
+                },
+            )
             .await
             .unwrap();
 
@@ -182,9 +192,12 @@ mod tests {
         let tool = CommandLoadTool::new(&commands);
 
         let result = tool
-            .call(CommandLoadArgs {
-                command_name: "unknown-cmd".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                CommandLoadArgs {
+                    command_name: "unknown-cmd".to_string(),
+                },
+            )
             .await;
 
         assert!(result.is_err());
@@ -198,9 +211,12 @@ mod tests {
         let tool = CommandLoadTool::new(&[]);
 
         let result = tool
-            .call(CommandLoadArgs {
-                command_name: "any".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                CommandLoadArgs {
+                    command_name: "any".to_string(),
+                },
+            )
             .await;
 
         assert!(result.is_err());

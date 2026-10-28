@@ -1,15 +1,15 @@
 //! A2A Agent 工具
 //!
-//! 将远程 A2A Agent 服务包装为 [`ContextualTool`]，使其可以被 LLM 通过
+//! 将远程 A2A Agent 服务包装为 动态工具，使其可以被 LLM 通过
 //! function calling 直接调用，与本地子智能体工具（`FlatSubAgentTool`）完全对称。
 //!
 //! 提供的主要内容：
-//! - [`A2aAgentTool`] - 将 `A2AAgent` 包装为 `ContextualTool`
+//! - [`A2aAgentTool`] - 将 `A2AAgent` 包装为动态工具
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use futures::StreamExt;
+use rig_core::tool::{DynamicTool, Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -18,7 +18,7 @@ use crate::{
     a2a::client::A2AAgent,
     error::Error,
     session::{AgentStreamEvent, FinishReason, event::DelegateType},
-    tool::{ContextualTool, ToolCallCtx},
+    tool::{ToolContextExt, dynamic_tool_named},
     types::a2a::A2aServiceConfig,
 };
 
@@ -27,7 +27,7 @@ const A2A_TOOL_PREFIX: &str = "a2a_";
 
 /// A2A Agent 工具
 ///
-/// 将远程 A2A Agent 服务包装为 [`ContextualTool`]，工具名为 `a2a_{service_name}`。
+/// 将远程 A2A Agent 服务包装为 动态工具，工具名为 `a2a_{service_name}`。
 /// LLM 可以像调用本地工具一样调用远程 A2A Agent，底层协议细节完全透明。
 ///
 /// ## 工作原理
@@ -79,6 +79,14 @@ impl A2aAgentTool {
     pub fn tool_name(&self) -> &str {
         &self.tool_name
     }
+
+    /// 转成带运行期名称（`a2a_{service_name}`）的 [`DynamicTool`]。
+    ///
+    /// rig 的 [`Tool::NAME`] 是常量，运行期名称只能在这一层覆盖。
+    pub fn into_dynamic_tool(self) -> DynamicTool {
+        let name = self.tool_name.clone();
+        dynamic_tool_named(&name, self)
+    }
 }
 
 /// 工具输入参数
@@ -101,16 +109,13 @@ pub struct A2aAgentOutput {
     error: Option<String>,
 }
 
-#[async_trait]
-impl ContextualTool for A2aAgentTool {
-    const NAME: &'static str = A2A_TOOL_PREFIX;
+impl Tool for A2aAgentTool {
+    /// 静态前缀；真正的逐实例名称（`a2a_{service}`）在转成
+    /// [`DynamicTool`] 时（[`Self::into_dynamic_tool`]）覆盖。
+    const NAME: &'static str = "a2a_agent_tool";
     type Args = A2aAgentArgs;
     type Output = A2aAgentOutput;
     type Error = Error;
-
-    fn name(&self) -> &str {
-        &self.tool_name
-    }
 
     fn description(&self) -> String {
         if self.description.is_empty() {
@@ -142,20 +147,22 @@ impl ContextualTool for A2aAgentTool {
 
     async fn call(
         &self,
-        ctx: ToolCallCtx<'_>,
+        ctx: &mut ToolContext,
         args: Self::Args,
     ) -> Result<Self::Output, Self::Error> {
+        let run = ctx.agent_run()?;
+        let scope = ctx.run_scope()?;
         let task = &args.task;
         let agent_name = self.agent.name().to_string();
         info!(
             agent_name = %agent_name,
             tool_name = %self.tool_name,
             task = %task,
-            parent_run_id = %ctx.run_id,
+            parent_run_id = %run.run_id,
             "A2A: delegating task to remote agent"
         );
 
-        let mut stream = match self.agent.run_stream(ctx.session_id, task) {
+        let mut stream = match self.agent.run_stream(&run.session_id, task) {
             Ok(s) => s,
             Err(e) => {
                 warn!(
@@ -198,14 +205,14 @@ impl ContextualTool for A2aAgentTool {
 
             // 将远程 Agent 的事件包装为 SubAgentEvent 转发给父 Agent
             let wrapped = AgentStreamEvent::SubAgentEvent {
-                parent_run_id: ctx.run_id.to_string(),
-                parent_agent_id: ctx.agent_id,
-                parent_session_id: ctx.session_id.to_string(),
+                parent_run_id: run.run_id.clone(),
+                parent_agent_id: run.agent_id,
+                parent_session_id: run.session_id.clone(),
                 delegate_target: agent_name.clone(),
                 delegate_type: DelegateType::A2aAgent,
                 event: Box::new(event),
             };
-            if ctx.events.send(wrapped).await.is_err() {
+            if scope.emit(wrapped).await.is_err() {
                 warn!(
                     agent_name = %agent_name,
                     "Parent event channel closed; stop forwarding A2A agent events"

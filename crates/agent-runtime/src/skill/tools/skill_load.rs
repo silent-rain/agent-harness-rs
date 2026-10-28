@@ -13,7 +13,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
@@ -130,7 +130,11 @@ impl Tool for SkillLoadTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let skill_code = &args.skill_code;
 
         // Validate skill_code is in the available set
@@ -261,9 +265,12 @@ mod tests {
         let tool =
             SkillLoadTool::new(tmp.path()).with_available_skills(vec!["test-skill".to_string()]);
         let result = tool
-            .call(SkillLoadArgs {
-                skill_code: "test-skill".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillLoadArgs {
+                    skill_code: "test-skill".to_string(),
+                },
+            )
             .await
             .unwrap();
 
@@ -286,9 +293,12 @@ mod tests {
         let tool =
             SkillLoadTool::new(tmp.path()).with_available_skills(vec!["allowed-skill".to_string()]);
         let result = tool
-            .call(SkillLoadArgs {
-                skill_code: "unknown-skill".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillLoadArgs {
+                    skill_code: "unknown-skill".to_string(),
+                },
+            )
             .await;
 
         assert!(result.is_err());
@@ -307,9 +317,12 @@ mod tests {
         let tool =
             SkillLoadTool::new(tmp.path()).with_available_skills(vec!["minimal".to_string()]);
         let result = tool
-            .call(SkillLoadArgs {
-                skill_code: "minimal".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillLoadArgs {
+                    skill_code: "minimal".to_string(),
+                },
+            )
             .await
             .unwrap();
 

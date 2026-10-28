@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{error::Error, types::mcp::McpToolInfo};
@@ -12,7 +12,7 @@ use crate::{error::Error, types::mcp::McpToolInfo};
 /// 列出指定 MCP 服务的可用工具
 ///
 /// 根据服务名称查询该服务下所有可用工具的名称和描述。
-/// 工具在 `McpRegistry::build_toolset()` 时通过快照数据构建，
+/// 工具在 `McpRegistry::build_tools()` 时通过快照数据构建，
 /// 无需持有 `McpRegistry` 引用。
 pub struct McpServiceToolsTool {
     /// Snapshot: service_name → tool info list
@@ -76,7 +76,11 @@ impl Tool for McpServiceToolsTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let tools = self
             .service_tools
             .get(&args.service_name)
@@ -115,9 +119,12 @@ mod tests {
         );
         let tool = McpServiceToolsTool::new(service_tools);
         let result = tool
-            .call(McpServiceToolsArgs {
-                service_name: "filesystem".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                McpServiceToolsArgs {
+                    service_name: "filesystem".to_string(),
+                },
+            )
             .await
             .unwrap();
         assert_eq!(result.service_name, "filesystem");
@@ -129,9 +136,12 @@ mod tests {
     async fn test_mcp_service_tools_not_found() {
         let tool = McpServiceToolsTool::new(HashMap::new());
         let result = tool
-            .call(McpServiceToolsArgs {
-                service_name: "nonexistent".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                McpServiceToolsArgs {
+                    service_name: "nonexistent".to_string(),
+                },
+            )
             .await;
         assert!(result.is_err());
     }

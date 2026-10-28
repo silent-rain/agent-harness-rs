@@ -1,13 +1,17 @@
 //! 工具模块
 //!
-//! 提供共享工具池与内置工具实现。
+//! 提供共享工具池与内置工具实现，工具契约**完全采用 rig-core 原生形态**：
 //!
-//! 工具调用由 [`ContextualToolSet`] 统一派发：
-//! - 实现 [`rig::Tool`] 的无状态工具会通过 [`StatelessAsContextual`] 适配为
-//!   [`ContextualToolDyn`]，与有状态工具共用同一份注册表；
-//! - 需要运行时上下文的工具（如子 Agent 委派）直接实现结构化的
-//!   [`ContextualTool`] trait（携带 `Args` / `Output` / `Error` 关联类型），
-//!   由 blanket impl 自动转换为 [`ContextualToolDyn`]。
+//! - 工具实现 rig 的 [`Tool`](rig_core::tool::Tool) 或直接构造
+//!   [`DynamicTool`](rig_core::tool::DynamicTool)；
+//! - 运行期统一持有 `DynamicTool`（对象安全形态），一次调用由
+//!   [`ToolPool::call`] 完成派发；
+//! - 上下文用 rig 的 [`ToolContext`](rig_core::tool::ToolContext)：
+//!   运行身份走 inbound（[`AgentRun`] / [`StepIndex`]），父运行事件通道走
+//!   scope（[`AgentRunScope`]）。
+//!
+//! 本仓库不再提供第二套工具抽象与上下文类型，二者之间的适配全部集中在
+//! [`rig_bridge`]。
 //!
 //! 提供的工具：
 //! - [`ReadFileTool`] - 读取文件内容
@@ -19,10 +23,10 @@
 //! ## 设计说明
 //!
 //! [`ToolPool`] 是工具子系统的唯一容器：
-//! - 内部以 `Arc<dyn ContextualToolDyn>` 持有候选工具，可通过 `Arc<ToolPool>`
-//!   在多个 Agent 间共享，避免重复构造工具实例；
-//! - [`ToolPool::into_contextual_toolset`] 派生 [`ContextualToolSet`]
-//!   供 `ToolExecutor` 调用，派生过程仅克隆 `Arc`，不复制底层实例；
+//! - 内部持有 `Arc<DynamicTool>`，可通过 `Arc<ToolPool>` 在多个 Agent 间共享，
+//!   避免重复构造工具实例；
+//! - 派发（[`ToolPool::call`]）与 LLM 工具定义（[`ToolPool::tool_definitions`]）
+//!   都直接由池提供，不再派生第二份注册表；
 //! - 池可变（`register_*` 接受 `&mut self`），但通过 `Arc<ToolPool>`
 //!   共享后，所有 Agent 看到的就是同一份只读快照。
 //!
@@ -34,10 +38,9 @@
 //! use agent_runtime::tool::simple_tools::all_builtin_tools;
 //! use agent_runtime::types::tool::ToolSource;
 //!
-//! // 1. 直接装填后派生 ContextualToolSet
+//! // 1. 逐个注册
 //! let mut pool = ToolPool::new();
 //! pool.register_builtin(ReadFileTool).register_builtin(ListDirTool);
-//! let toolset = pool.into_contextual_toolset();
 //!
 //! // 2. 一次性注入内置工具
 //! let mut pool = ToolPool::new();
@@ -45,16 +48,16 @@
 //!
 //! // 3. 多 Agent 共享同一份池
 //! let pool = Arc::new(pool);
-//! let toolset = pool.into_contextual_toolset();
+//! let definitions = pool.tool_definitions();
 //! ```
-mod contextual;
 mod pool;
+pub mod rig_bridge;
 pub mod simple_tools;
 mod tools;
 
-pub use contextual::{
-    ContextualCallError, ContextualTool, ContextualToolDyn, ContextualToolSet, RigToolWrapper,
-    ToolCallCtx,
+pub use pool::{ToolCallError, ToolPool};
+pub use rig_bridge::{
+    AgentRun, AgentRunScope, StepIndex, ToolContextExt, call_context, dynamic_tool,
+    dynamic_tool_named, tool_name_of, tool_output_to_string,
 };
-pub use pool::ToolPool;
 pub use tools::*;

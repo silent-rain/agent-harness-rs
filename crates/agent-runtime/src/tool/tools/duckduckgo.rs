@@ -6,7 +6,7 @@
 //! 当前为最小可用实现：调用 `https://api.duckduckgo.com/?q=...&format=json`，
 //! 返回 `AbstractText` / `RelatedTopics` 摘要。任务 5 中会进一步丰富参数与结果结构。
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -85,7 +85,11 @@ impl Tool for DuckDuckGoTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let limit = args
             .max_results
             .unwrap_or(DEFAULT_MAX_RESULTS)

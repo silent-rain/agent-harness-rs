@@ -15,7 +15,7 @@
 //!     ├── add_configs(configs)    → 批量注册配置
 //!     ├── with_configs(configs)   → 替换式批量设置（Builder 风格）
 //!     ├── connect_all()           → 连接所有 pending 配置
-//!     ├── build_tools()           → 构建 A2A 工具列表（Vec<Box<dyn ContextualTool>>）
+//!     ├── build_tools()           → 构建 A2A 工具列表（Vec<A2aAgentTool>）
 //!     ├── connection_count()      → 已连接服务数量
 //!     └── pending_count()         → 待连接配置数量
 //! ```
@@ -212,7 +212,7 @@ impl A2aRegistry {
     ///
     /// 将所有已连接的 A2A Agent 包装为 [`A2aAgentTool`]，
     /// 返回 `Vec<A2aAgentTool>` 供 [`crate::tool::ToolPool`] 通过
-    /// `register_contextual` 注册。
+    /// `register_dynamic` 注册（每个实例转成带运行期名称的 `DynamicTool`）。
     ///
     /// # Returns
     ///

@@ -1,16 +1,21 @@
 //! LLM 模型适配器
 //!
-//! 提供 object-safe 的 [`ModelAdapter`] trait，作为 rig-core `CompletionModel`
-//! 的类型擦除包装。通过 blanket impl，任何实现了 `CompletionModel` 的类型
-//! 自动获得 `ModelAdapter` 实现，用户无需手动实现此 trait。
+//! 提供 object-safe 的 [`ModelAdapter`] trait，作为 rig-core 0.45
+//! [`DynModel<Completion>`]（类型擦除后的补全模型）的运行时包装。
+//! 通过 blanket impl，任何 `DynModel<Completion>` 自动获得 `ModelAdapter`
+//! 实现，用户无需手动实现此 trait。
 //!
 //! 提供的主要内容：
 //! - [`ModelAdapter`]: object-safe 的 LLM 模型调用 trait（同时支持非流式与 token 流式）
-//! - blanket impl: 自动为所有 `rig::CompletionModel` 实现 `ModelAdapter`
+//! - blanket impl: 自动为所有 `rig_core::DynModel<Completion>` 实现 `ModelAdapter`
 
 use async_trait::async_trait;
 use futures::StreamExt;
-use rig_core::completion::{CompletionModel, CompletionRequest, CompletionResponse};
+use rig_core::{
+    completion::{CompletionRequest, CompletionResponse},
+    driver::DynModel,
+    operation::Completion,
+};
 
 use crate::{
     error::{AgentResult, Error},
@@ -19,10 +24,10 @@ use crate::{
 
 /// Object-safe 的 LLM 模型调用 trait
 ///
-/// 对 rig-core `CompletionModel` 的类型擦除包装，使得 `Agent` 可以
+/// 对 rig-core `DynModel<Completion>` 的类型擦除包装，使得 `Agent` 可以
 /// 通过 `Arc<dyn ModelAdapter>` 持有任意 provider 的模型实例。
 ///
-/// **用户无需手动实现此 trait**，所有实现了 `rig::CompletionModel` 的类型
+/// **用户无需手动实现此 trait**，rig-core 的补全模型（`DynModel<Completion>`）
 /// 会通过 blanket impl 自动获得 `ModelAdapter` 实现。
 ///
 /// # Examples
@@ -31,9 +36,8 @@ use crate::{
 /// use std::sync::Arc;
 /// use agent_runtime::model::ModelAdapter;
 ///
-/// // 任何 rig CompletionModel 自动实现 ModelAdapter
-/// // let model = openai::Client::from_env().completion_model("gpt-4o");
-/// // let adapter: Arc<dyn ModelAdapter> = Arc::new(model);
+/// // 任何 rig 补全模型自动实现 ModelAdapter
+/// // let model = create_model(&config)?;
 /// ```
 #[async_trait]
 pub trait ModelAdapter: Send + Sync + 'static {
@@ -45,8 +49,8 @@ pub trait ModelAdapter: Send + Sync + 'static {
     ///
     /// # Returns
     ///
-    /// 推理响应（类型擦除后 raw_response 为 `()`）
-    async fn completion(&self, request: CompletionRequest) -> AgentResult<CompletionResponse<()>>;
+    /// 推理响应（provider 原始载荷保存在 `raw` 字段，不做类型约束）
+    async fn completion(&self, request: CompletionRequest) -> AgentResult<CompletionResponse>;
 
     /// 调用 LLM 进行 token 级流式推理
     ///
@@ -74,49 +78,36 @@ pub trait ModelAdapter: Send + Sync + 'static {
     ) -> AgentResult<BoxedCompletionStream>;
 }
 
-/// 为所有 `CompletionModel` 自动实现 `ModelAdapter`
+/// 为所有 `DynModel<Completion>` 自动实现 `ModelAdapter`
 ///
-/// 通过此 blanket impl，用户只需传入任何 rig model 实例（再用 `Arc::new` 装箱），
-/// 即可自动获得 `ModelAdapter` 实现，无需额外适配代码。
+/// 通过此 blanket impl，用户只需把 provider 模型 `erase()` 成
+/// `DynModel<Completion>`（再用 `Arc::new` 装箱），即可自动获得
+/// `ModelAdapter` 实现，无需额外适配代码。
 #[async_trait]
-impl<M> ModelAdapter for M
-where
-    M: CompletionModel + Send + Sync + 'static,
-{
-    async fn completion(&self, request: CompletionRequest) -> AgentResult<CompletionResponse<()>> {
-        let response = CompletionModel::completion(self, request)
+impl ModelAdapter for DynModel<Completion> {
+    async fn completion(&self, request: CompletionRequest) -> AgentResult<CompletionResponse> {
+        DynModel::call(self, request)
             .await
-            .map_err(|e| Error::ModelCall(e.to_string()))?;
-
-        Ok(CompletionResponse {
-            choice: response.choice,
-            usage: response.usage,
-            raw_response: (),
-            message_id: response.message_id,
-        })
+            .map_err(|e| Error::ModelCall(e.to_string()))
     }
 
     async fn stream_completion(
         &self,
         request: CompletionRequest,
     ) -> AgentResult<BoxedCompletionStream> {
-        let mut response = CompletionModel::stream(self, request)
-            .await
-            .map_err(|e| Error::ModelCall(e.to_string()))?;
+        let mut response =
+            DynModel::stream(self, request).map_err(|e| Error::ModelCall(e.to_string()))?;
 
-        // 把每个 StreamedAssistantContent 映射为 StreamChunk，流结束时输出 Done。
+        // 把每个流式事件映射为 StreamChunk，流结束时输出带 usage 的 Done。
         let stream = async_stream::try_stream! {
             while let Some(item) = response.next().await {
-                match item {
-                    Ok(content) => {
-                        if let Some(chunk) = conv::map_streamed_content::<M::StreamingResponse>(content) {
-                            yield chunk;
-                        }
-                    }
-                    Err(e) => Err(Error::ModelCall(e.to_string()))?,
+                let item = item.map_err(|e| Error::ModelCall(e.to_string()))?;
+                if let Some(chunk) = conv::map_stream_event(&item) {
+                    yield chunk;
                 }
             }
-            yield StreamChunk::Done { usage: None };
+            let usage = response.partial().usage;
+            yield StreamChunk::Done { usage: Some(usage) };
         };
 
         Ok(Box::pin(stream))

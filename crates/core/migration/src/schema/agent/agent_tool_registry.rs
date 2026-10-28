@@ -18,7 +18,10 @@ impl MigrationTrait for Migration {
         let db = manager.get_connection();
 
         // 实体优先：列类型/默认值/注释/索引由实体属性派生
-        db.get_schema_builder().register(ToolRegistry).apply(db).await?;
+        db.get_schema_builder()
+            .register(ToolRegistry)
+            .apply(db)
+            .await?;
 
         Ok(())
     }

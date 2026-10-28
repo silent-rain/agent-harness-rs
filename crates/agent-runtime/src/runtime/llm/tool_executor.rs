@@ -11,16 +11,16 @@
 //! [`AgentStreamEvent::ToolCallFinished`] 事件中，通过 `append_event` 统一落库，
 //! 不再单独记录 `tool_audit` 事件。
 //!
-//! ## 上下文工具支持
+//! ## 上下文装配
 //!
-//! 工具调用统一通过 [`ContextualToolSet`] 派发：
+//! 工具派发统一走 [`ToolPool::call`]，上下文由 [`call_context`] 装配：
 //!
-//! - 普通无状态工具（`read_file` / MCP / skill / ...）落入 `rig::ToolSet`
-//!   走原有路径；
-//! - 需要运行时上下文的工具（如子 Agent 委派）实现
-//!   [`ContextualTool`](crate::tool::ContextualTool)，调用时由
-//!   `ToolExecutor` 把当前 `run_id` / `session_id` / `events` 通过借用
-//!   构造的 [`ToolCallCtx`] 传入，无需任何共享可变态。
+//! - 运行身份（`run_id` / `session_id` / `agent_id` / `user_id`）与步序走
+//!   [`ToolContext`](rig_core::tool::ToolContext) 的 inbound 槽位；
+//! - 事件通道走 scope（[`AgentRunScope`](crate::tool::AgentRunScope)）。
+//!
+//! 因此无状态工具与需要运行时上下文的工具（子 Agent 委派 / A2A / skill）
+//! 共用同一条派发路径，无任何共享可变态。
 
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ use crate::{
     message::ConversationMessage,
     runtime::{RuntimeServices, llm::repair_json_arguments},
     session::AgentStreamEvent,
-    tool::{ContextualCallError, ContextualToolSet, ToolCallCtx, ToolPool},
+    tool::{AgentRun, ToolCallError, ToolPool, call_context},
     types::{
         hook::{AfterToolArgs, BeforeToolArgs},
         runtime::RunConfig,
@@ -51,11 +51,6 @@ use crate::{
 /// - 工具结果上下文写入（会话级）
 /// - 消息上下文追加
 pub struct ToolExecutor {
-    /// 上下文工具集（已在 builder 阶段构建完成）
-    ///
-    /// 同时承载无状态 `rig::Tool` 与有状态 `ContextualTool`，由
-    /// [`ContextualToolSet::call`] 在调用点统一派发。
-    toolset: Arc<ContextualToolSet>,
     /// 事件发送端：所有运行进展通过此 channel 流式推送给消费方
     events: mpsc::Sender<AgentStreamEvent>,
     /// 运行时服务（写入会话事件 / 记忆）
@@ -68,9 +63,10 @@ pub struct ToolExecutor {
     agent_id: i64,
     /// 用户 ID（事件落库时填入 `t_agent_session_event.user_id`；支持多种身份系统）
     user_id: String,
-    /// 候选工具池
+    /// 候选工具池（唯一注册表 + 派发入口）
     ///
-    /// 发射 `ToolCallStarted` / `ToolCallFinished` 事件时查表填充 `source` 字段。
+    /// 工具定义列表与调用派发均由此提供；发射 `ToolCallStarted` /
+    /// `ToolCallFinished` 事件时查表填充 `source` 字段。
     /// 与 `Builder` 装配阶段冻结的同一份 `Arc<ToolPool>` 共享。
     tool_pool: Arc<ToolPool>,
 }
@@ -79,7 +75,6 @@ impl ToolExecutor {
     /// 创建工具执行器
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        toolset: Arc<ContextualToolSet>,
         events: mpsc::Sender<AgentStreamEvent>,
         services: RuntimeServices,
         hooks: Arc<HookRegistry>,
@@ -89,7 +84,6 @@ impl ToolExecutor {
         tool_pool: Arc<ToolPool>,
     ) -> Self {
         Self {
-            toolset,
             events,
             services,
             hooks,
@@ -165,7 +159,7 @@ impl ToolExecutor {
 }
 
 impl ToolExecutor {
-    /// 派发单次工具调用：构造借用语义的 [`ToolCallCtx`]
+    /// 派发单次工具调用：装配 [`ToolContext`](rig_core::tool::ToolContext) 后交给工具池
     pub async fn call(
         &self,
         run_id: &str,
@@ -173,17 +167,14 @@ impl ToolExecutor {
         session_id: &str,
         toolname: &str,
         arguments_json: &str,
-    ) -> Result<String, ContextualCallError> {
-        let ctx = ToolCallCtx {
-            run_id,
+    ) -> Result<String, ToolCallError> {
+        let mut ctx = call_context(
+            AgentRun::new(run_id, session_id, self.agent_id, self.user_id.clone()),
             step,
-            events: &self.events,
-            session_id,
-            user_id: &self.user_id,
-            agent_id: self.agent_id,
-        };
-        self.toolset
-            .call(ctx, toolname, arguments_json.to_string())
+            self.events.clone(),
+        )?;
+        self.tool_pool
+            .call(&mut ctx, toolname, arguments_json)
             .await
     }
 
@@ -195,7 +186,7 @@ impl ToolExecutor {
     ///
     /// * `run_id` - 运行 ID
     /// * `step` - 当前步骤序号
-    /// * `session_id` - 会话 ID（一并构造 [`ToolCallCtx`]）
+    /// * `session_id` - 会话 ID（一并构造工具上下文）
     /// * `toolname` - 工具唯一编码
     /// * `arguments_json` - 已可能经过 JSON 修复的参数字符串
     pub async fn call_with_retry(
@@ -205,7 +196,7 @@ impl ToolExecutor {
         session_id: &str,
         toolname: &str,
         arguments_json: &str,
-    ) -> Result<String, ContextualCallError> {
+    ) -> Result<String, ToolCallError> {
         // 首次调用
         let mut last_err = match self
             .call(run_id, step, session_id, toolname, arguments_json)

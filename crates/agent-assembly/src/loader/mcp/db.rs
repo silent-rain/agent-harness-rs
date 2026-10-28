@@ -48,7 +48,8 @@ impl DbMcpLoader {
     ///
     /// 查询逻辑：
     /// 1. JOIN `t_agent_mcp_service_registry`，取出 `rel.enabled = true` 且 `registry.enabled = true` 的记录
-    /// 2. 优先使用 `rel.enabled_tools`（非空时）覆盖注册表默认工具白名单
+    /// 2. 优先使用 `rel.enabled_tools`（非空时）覆盖注册表默认工具白名单；
+    ///    两者都为空时产出空列表，由 [`agent_runtime::mcp::ToolPolicy`] 解释为「全部可用」
     /// 3. 从 `registry.config_json`（`mcpServers` 包裹格式）解析 [`McpServiceEntry`]；
     ///    `config_json` 缺失、JSON 格式错误或服务名不存在时直接返回错误
     /// 4. 自动推断并补全 `transport_type`（规则与 `LocalMcpLoader` 一致）

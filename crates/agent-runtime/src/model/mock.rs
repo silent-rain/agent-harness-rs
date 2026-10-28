@@ -11,17 +11,18 @@
 //! 切勿在生产代码中使用。
 
 use async_trait::async_trait;
-use rig_core::OneOrMany;
-use rig_core::completion::message::{
-    AssistantContent, Message, Text, ToolCall, ToolFunction, UserContent,
+use rig_core::completion::{
+    CompletionRequest, CompletionResponse, Usage,
+    message::{
+        AssistantContent, CallId, Message, Origin, Text, ToolCall, ToolFunction, UserContent,
+    },
 };
-use rig_core::completion::{CompletionRequest, CompletionResponse};
 
 use crate::{
     error::AgentResult,
     model::{
         ModelAdapter,
-        streaming::{BoxedCompletionStream, StreamChunk, conv},
+        streaming::{BoxedCompletionStream, StreamChunk},
     },
 };
 
@@ -117,44 +118,49 @@ impl MockModel {
         request
             .chat_history
             .iter()
-            .filter_map(|m| match m {
-                Message::User { content, .. } => content.iter().find_map(|c| match c {
+            .filter_map(|m| match m.as_ref() {
+                Message::User { content } => content.iter().find_map(|c| match c {
                     UserContent::Text(t) => Some(t.text.clone()),
                     _ => None,
                 }),
                 _ => None,
             })
-            .last()
+            .next_back()
             .unwrap_or_else(|| "无输入".to_string())
+    }
+
+    /// 构造 mock 响应（provider 元数据统一标记为 `mock`）
+    fn respond(choice: Vec<AssistantContent>) -> CompletionResponse {
+        CompletionResponse::new(
+            choice,
+            Usage::new(),
+            Origin::new("mock", "mock", "mock"),
+            serde_json::Value::Null,
+        )
     }
 }
 
 #[async_trait]
 impl ModelAdapter for MockModel {
-    async fn completion(&self, request: CompletionRequest) -> AgentResult<CompletionResponse<()>> {
+    async fn completion(&self, request: CompletionRequest) -> AgentResult<CompletionResponse> {
         let choice = match &self.behavior {
             MockBehavior::Unreachable => {
                 unreachable!("MockModel::new() 用于不应触达模型的测试路径，但被调用了")
             }
             MockBehavior::Echo => {
                 let text = format!("Echo: {}", Self::last_user_text(&request));
-                OneOrMany::one(AssistantContent::Text(Text::new(text)))
+                vec![AssistantContent::Text(Text::new(text))]
             }
             MockBehavior::AlwaysToolCall {
                 tool_name,
                 arguments,
-            } => OneOrMany::one(AssistantContent::ToolCall(ToolCall::new(
-                format!("call_{tool_name}"),
-                ToolFunction::new(tool_name.clone(), arguments.clone()),
-            ))),
+            } => vec![AssistantContent::ToolCall(ToolCall::new(
+                CallId::from_wire(format!("call_{tool_name}")),
+                ToolFunction::new(crate::tool::tool_name_of(tool_name), arguments.clone()),
+            ))],
         };
 
-        Ok(CompletionResponse {
-            choice,
-            usage: Default::default(),
-            raw_response: (),
-            message_id: None,
-        })
+        Ok(Self::respond(choice))
     }
 
     async fn stream_completion(
@@ -172,15 +178,15 @@ impl ModelAdapter for MockModel {
 ///
 /// # Parameters
 ///
-/// * `response` - 类型擦除后的完成响应（`raw_response = ()`）
+/// * `response` - 类型擦除后的完成响应
 ///
 /// # Returns
 ///
 /// 与原响应语义等价的 chunk 列表（末尾带 `Done`）
-fn completion_to_chunks(response: CompletionResponse<()>) -> Vec<StreamChunk> {
+fn completion_to_chunks(response: CompletionResponse) -> Vec<StreamChunk> {
     let mut chunks = Vec::new();
-    if let Some(message_id) = response.message_id {
-        chunks.push(StreamChunk::MessageId(message_id));
+    if let Some(call_id) = response.origin.response_id.clone() {
+        chunks.push(StreamChunk::MessageId(call_id));
     }
     for content in response.choice {
         match content {
@@ -189,15 +195,17 @@ fn completion_to_chunks(response: CompletionResponse<()>) -> Vec<StreamChunk> {
             }
             AssistantContent::ToolCall(tool_call) => {
                 chunks.push(StreamChunk::ToolCall {
-                    id: tool_call.id,
+                    id: tool_call.id.to_string(),
                     internal_call_id: uuid::Uuid::new_v4().to_string(),
-                    name: tool_call.function.name,
-                    arguments: tool_call.function.arguments,
+                    name: tool_call.function.name.to_string(),
+                    arguments: serde_json::Value::Object(tool_call.function.arguments),
                 });
             }
             AssistantContent::Reasoning(reasoning) => {
-                let (id, text) = conv::flatten_reasoning(&reasoning);
-                chunks.push(StreamChunk::Reasoning { id, text });
+                chunks.push(StreamChunk::Reasoning {
+                    id: None,
+                    text: reasoning.text,
+                });
             }
             // 非穷尽枚举：图片等其他模态在文本/工具决策语义中无法直接映射，
             // 这里整体忽略（不影响后续工具调用解析与文本输出）。

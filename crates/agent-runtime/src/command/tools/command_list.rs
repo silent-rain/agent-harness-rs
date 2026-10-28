@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -97,7 +97,11 @@ impl Tool for CommandListTool {
         })
     }
 
-    async fn call(&self, _args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        _args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         Ok(CommandListOutput {
             total: self.entries.len(),
             commands: (*self.entries).clone(),
@@ -141,7 +145,10 @@ mod tests {
         let commands = make_commands();
         let tool = CommandListTool::new(&commands);
 
-        let result = tool.call(CommandListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), CommandListArgs {})
+            .await
+            .unwrap();
 
         assert_eq!(result.total, 3);
         assert_eq!(result.commands.len(), 3);
@@ -152,7 +159,10 @@ mod tests {
         let commands = make_commands();
         let tool = CommandListTool::new(&commands);
 
-        let result = tool.call(CommandListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), CommandListArgs {})
+            .await
+            .unwrap();
 
         let names: Vec<&str> = result.commands.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(names, vec!["gen-doc", "gen-test", "refactor"]);
@@ -163,7 +173,10 @@ mod tests {
         let commands = make_commands();
         let tool = CommandListTool::new(&commands);
 
-        let result = tool.call(CommandListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), CommandListArgs {})
+            .await
+            .unwrap();
 
         let gen_test = result
             .commands
@@ -184,7 +197,10 @@ mod tests {
     async fn test_command_list_empty_registry() {
         let tool = CommandListTool::new(&[]);
 
-        let result = tool.call(CommandListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), CommandListArgs {})
+            .await
+            .unwrap();
 
         assert_eq!(result.total, 0);
         assert!(result.commands.is_empty());

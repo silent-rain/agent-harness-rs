@@ -22,7 +22,7 @@ use crate::{
 /// 本地 MCP 配置加载器
 ///
 /// 读取指定路径的 `mcp.json` 文件，将其解析为 [`McpServerConfig`] 列表。
-/// 每个条目包含服务名称、工具白名单（本地配置默认为 `["*"]`）及连接参数。
+/// 每个条目包含服务名称、允许工具列表（本地配置固定为 `["*"]`，即全部启用）及连接参数。
 ///
 /// 设计上保持"被动"：仅在 `load()` 调用时执行 I/O，不持有任何运行期可变状态。
 /// 加载结果由调用方注入到 [`crate::mcp::McpRegistry`] 中统一建立连接。
@@ -97,7 +97,9 @@ impl LocalMcpLoader {
     ///
     /// 读取 `config_path` 指向的 JSON 文件，解析为 [`McpServerConfig`] 列表，
     /// 按服务名字典序排列以保证确定性。
-    /// 本地配置的工具白名单默认为 `["*"]`（允许所有工具）。
+    /// 本地配置不提供工具级开关，统一为 `["*"]`（即 [`ToolPolicy::All`]）。
+    ///
+    /// [`ToolPolicy::All`]: crate::mcp::ToolPolicy::All
     ///
     /// 配置文件不存在时返回空列表（视作"无本地 MCP 配置"，不视为错误）。
     ///
@@ -146,7 +148,7 @@ impl LocalMcpLoader {
                 entry.transport_type = Some(infer_transport_type(&entry));
                 McpServerConfig {
                     service_name: name,
-                    // Local configs allow all tools by default
+                    // 本地配置无工具级开关：空列表/`["*"]` 均由 ToolPolicy 归一为「全部启用」
                     allowed_tools: vec!["*".to_string()],
                     server_config: entry,
                 }

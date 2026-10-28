@@ -13,7 +13,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
@@ -142,7 +142,11 @@ impl Tool for SkillSelectDocsTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let skill_code = &args.skill_code;
 
         if !self.available_skills.contains(skill_code) {
@@ -253,10 +257,13 @@ mod tests {
         let tool = SkillSelectDocsTool::new(tmp.path())
             .with_available_skills(vec!["my-skill".to_string()]);
         let result = tool
-            .call(SkillSelectDocsArgs {
-                skill_code: "my-skill".to_string(),
-                docs: vec!["references/guide.md".to_string()],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillSelectDocsArgs {
+                    skill_code: "my-skill".to_string(),
+                    docs: vec!["references/guide.md".to_string()],
+                },
+            )
             .await
             .unwrap();
 
@@ -282,13 +289,16 @@ mod tests {
         let tool = SkillSelectDocsTool::new(tmp.path())
             .with_available_skills(vec!["my-skill".to_string()]);
         let result = tool
-            .call(SkillSelectDocsArgs {
-                skill_code: "my-skill".to_string(),
-                docs: vec![
-                    "references/guide.md".to_string(),
-                    "assets/run.sh".to_string(),
-                ],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillSelectDocsArgs {
+                    skill_code: "my-skill".to_string(),
+                    docs: vec![
+                        "references/guide.md".to_string(),
+                        "assets/run.sh".to_string(),
+                    ],
+                },
+            )
             .await
             .unwrap();
 
@@ -304,10 +314,13 @@ mod tests {
         let tool = SkillSelectDocsTool::new(tmp.path())
             .with_available_skills(vec!["my-skill".to_string()]);
         let result = tool
-            .call(SkillSelectDocsArgs {
-                skill_code: "my-skill".to_string(),
-                docs: vec!["nonexistent.md".to_string()],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillSelectDocsArgs {
+                    skill_code: "my-skill".to_string(),
+                    docs: vec!["nonexistent.md".to_string()],
+                },
+            )
             .await
             .unwrap();
 
@@ -323,10 +336,13 @@ mod tests {
         let tool = SkillSelectDocsTool::new(tmp.path())
             .with_available_skills(vec!["my-skill".to_string()]);
         let result = tool
-            .call(SkillSelectDocsArgs {
-                skill_code: "my-skill".to_string(),
-                docs: vec![SKILL_ENTRY_FILE.to_string()],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillSelectDocsArgs {
+                    skill_code: "my-skill".to_string(),
+                    docs: vec![SKILL_ENTRY_FILE.to_string()],
+                },
+            )
             .await
             .unwrap();
 
@@ -341,10 +357,13 @@ mod tests {
         let tool =
             SkillSelectDocsTool::new(tmp.path()).with_available_skills(vec!["allowed".to_string()]);
         let result = tool
-            .call(SkillSelectDocsArgs {
-                skill_code: "unknown".to_string(),
-                docs: vec!["guide.md".to_string()],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillSelectDocsArgs {
+                    skill_code: "unknown".to_string(),
+                    docs: vec!["guide.md".to_string()],
+                },
+            )
             .await;
 
         assert!(result.is_err());

@@ -26,10 +26,7 @@ use std::{
 };
 
 use futures::{StreamExt, future::join_all};
-use rig_core::{
-    completion::{CompletionRequest, Usage},
-    one_or_many::OneOrMany,
-};
+use rig_core::completion::{CompletionRequest, Usage};
 use tokio::{
     sync::{Semaphore, mpsc},
     time::interval,
@@ -48,7 +45,7 @@ use crate::{
         llm::{tool_executor::ToolExecutor, types::ModelTurn},
     },
     session::{AgentStreamEvent, PlannedToolCall},
-    tool::{ContextualToolSet, ToolPool},
+    tool::ToolPool,
     types::{
         hook::{AfterModelArgs, BeforeModelArgs},
         runtime::{AgentConfig, RunConfig},
@@ -197,7 +194,7 @@ impl ModelCaller {
         run_id: &str,
         step: u32,
         messages: &MessageContext,
-        toolset: &ContextualToolSet,
+        toolset: &ToolPool,
     ) -> AgentResult<()> {
         self.hooks
             .fire_before_model(BeforeModelArgs {
@@ -260,7 +257,7 @@ impl ModelCaller {
         run_id: &str,
         step: u32,
         messages: &mut MessageContext,
-        toolset: &ContextualToolSet,
+        toolset: &ToolPool,
         agent_id: i64,
         session_id: &str,
         user_id: &str,
@@ -322,7 +319,7 @@ impl ModelCaller {
         run_id: &str,
         step: u32,
         messages: &mut MessageContext,
-        toolset: &ContextualToolSet,
+        toolset: &ToolPool,
         session_id: &str,
     ) -> AgentResult<ModelTurn> {
         // 1. before_model 钩子
@@ -365,26 +362,21 @@ impl ModelCaller {
         session_id: &str,
         step: u32,
         messages: &MessageContext,
-        toolset: &ContextualToolSet,
+        toolset: &ToolPool,
     ) -> AgentResult<ModelTurn> {
         let rig_messages = messages.to_rig_messages();
-        let chat_history = OneOrMany::many(rig_messages).map_err(|_| {
-            Error::ModelCall("消息列表为空，无法构建 CompletionRequest".to_string())
-        })?;
+        if rig_messages.is_empty() {
+            return Err(Error::ModelCall(
+                "消息列表为空，无法构建 CompletionRequest".to_string(),
+            ));
+        }
         let tool_definitions = toolset.tool_definitions();
 
-        let request = CompletionRequest {
-            model: Some(self.agent_config.model_config.model.clone()),
-            preamble: None,
-            chat_history,
-            documents: vec![],
-            tools: tool_definitions,
-            temperature: self.agent_config.model_config.temperature,
-            max_tokens: self.agent_config.model_config.max_tokens,
-            tool_choice: None,
-            additional_params: None,
-            output_schema: None,
-        };
+        let request = CompletionRequest::from(rig_messages)
+            .model(self.agent_config.model_config.model.clone())
+            .tools(tool_definitions)
+            .temperature(self.agent_config.model_config.temperature)
+            .max_tokens(self.agent_config.model_config.max_tokens);
 
         debug!(
             run_id = %run_id,

@@ -3,7 +3,7 @@
 //! 列出指定目录的内容。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AgentResult, Error};
@@ -69,7 +69,11 @@ impl Tool for ListDirTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let show_hidden = args.show_hidden.unwrap_or(false);
         let path = args.path.clone();
 

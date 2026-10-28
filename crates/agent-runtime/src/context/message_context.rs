@@ -8,12 +8,13 @@
 //! 提供的主要内容：
 //! - [`MessageContext`][]: 对话消息上下文管理器
 
-use rig_core::OneOrMany;
 use rig_core::completion::message::{
-    AssistantContent, Message, Text, ToolCall, ToolFunction, ToolResult, ToolResultContent,
-    UserContent,
+    AssistantContent, AssistantMessage, CallId, Message, Text, ToolCall, ToolFunction, ToolResult,
+    ToolResultContent, UserContent,
 };
 use uuid::Uuid;
+
+use crate::tool::tool_name_of;
 
 use crate::message::{ConversationMessage, MessageRole};
 use crate::session::PlannedToolCall;
@@ -157,7 +158,7 @@ fn to_rig_message(msg: &ConversationMessage) -> Message {
             content: msg.content.clone(),
         },
         MessageRole::User => Message::User {
-            content: OneOrMany::one(UserContent::Text(Text::new(msg.content.clone()))),
+            content: vec![UserContent::Text(Text::new(msg.content.clone()))],
         },
         MessageRole::Assistant => {
             let mut contents: Vec<AssistantContent> = Vec::new();
@@ -174,29 +175,21 @@ fn to_rig_message(msg: &ConversationMessage) -> Message {
                     let arguments = serde_json::from_str(&tc.arguments_json)
                         .unwrap_or_else(|_| serde_json::json!({}));
                     contents.push(AssistantContent::ToolCall(ToolCall::new(
-                        tc.call_id.clone(),
-                        ToolFunction::new(tc.tool_name.clone(), arguments),
+                        CallId::from_wire(tc.call_id.clone()),
+                        ToolFunction::new(tool_name_of(&tc.tool_name), arguments),
                     )));
                 }
             }
 
-            // 若两者都为空，至少保留一个空 Text 以符合 rig 的 OneOrMany 约束
+            // 若两者都为空，至少保留一个空 Text，保证 assistant 轮有内容块
             if contents.is_empty() {
                 contents.push(AssistantContent::Text(Text::new(String::new())));
             }
 
-            Message::Assistant {
-                id: None,
-                content: match OneOrMany::many(contents) {
-                    Ok(c) => c,
-                    Err(e) => {
-                        tracing::warn!(
-                            "Failed to create Assistant message with many contents: {e}"
-                        );
-                        OneOrMany::one(AssistantContent::Text(Text::new(String::new())))
-                    }
-                },
-            }
+            // `AssistantMessage` 是 non_exhaustive 结构体：先取默认值再写入内容块
+            let mut assistant = AssistantMessage::default();
+            assistant.content = contents;
+            Message::Assistant(assistant)
         }
         MessageRole::Tool => {
             let tool_call_id = msg
@@ -205,13 +198,12 @@ fn to_rig_message(msg: &ConversationMessage) -> Message {
                 .unwrap_or_else(|| Uuid::new_v4().to_string());
 
             Message::User {
-                content: OneOrMany::one(UserContent::ToolResult(ToolResult {
-                    id: tool_call_id,
-                    call_id: None,
-                    content: OneOrMany::one(ToolResultContent::Text(Text::new(
-                        msg.content.clone(),
-                    ))),
-                })),
+                content: vec![UserContent::ToolResult(ToolResult {
+                    call: CallId::from_wire(tool_call_id),
+                    name: tool_name_of(msg.tool_name.as_deref().unwrap_or("")),
+                    content: vec![ToolResultContent::Text(Text::new(msg.content.clone()))],
+                    is_error: false,
+                })],
             }
         }
     }
@@ -263,7 +255,7 @@ mod tests {
 
         matches!(rig_messages[0], Message::System { .. });
         matches!(rig_messages[1], Message::User { .. });
-        matches!(rig_messages[2], Message::Assistant { .. });
+        matches!(rig_messages[2], Message::Assistant(_));
         matches!(rig_messages[3], Message::User { .. });
     }
 

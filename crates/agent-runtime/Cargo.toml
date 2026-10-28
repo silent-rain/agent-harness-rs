@@ -28,6 +28,8 @@ mcp = [
     "rmcp/transport-streamable-http-client",
     "rmcp/transport-streamable-http-client-reqwest",
     "rmcp/transport-child-process",
+    # reqwest 传输默认不带 TLS，https 端点需要显式开启 rustls
+    "rmcp/reqwest",
 ]
 
 # 启用 A2A（Agent-to-Agent）协议支持
@@ -45,6 +47,8 @@ a2a = [
 [dependencies]
 # LLM 推理与工具系统（核心依赖）
 rig-core = { workspace = true }
+# rig-core 自带 provider wire，但 HTTP transport 在独立 crate 中提供
+rig-reqwest = { workspace = true }
 async-openai = { workspace = true, features = ["chat-completion-types"] }
 
 # MCP 工具调用（可选）

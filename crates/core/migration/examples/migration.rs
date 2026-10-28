@@ -65,19 +65,18 @@ async fn create_db(database_url: String) -> Result<(), Box<dyn std::error::Error
     let connection = MySqlPoolOptions::new().connect(database_server).await?;
 
     // 检查数据库是否存在
-    let row: (Option<i32>,) = match sqlx::query_as(
-        "SELECT 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?",
-    )
-    .bind(database_name)
-    .fetch_one(&connection)
-    .await
-    {
-        Ok(v) => v,
-        Err(err) => match err {
-            sqlx::Error::RowNotFound => (None,),
-            _ => panic!("查询数据库异常, err:{:#?}", err),
-        },
-    };
+    let row: (Option<i32>,) =
+        match sqlx::query_as("SELECT 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?")
+            .bind(database_name)
+            .fetch_one(&connection)
+            .await
+        {
+            Ok(v) => v,
+            Err(err) => match err {
+                sqlx::Error::RowNotFound => (None,),
+                _ => panic!("查询数据库异常, err:{:#?}", err),
+            },
+        };
 
     // 如果数据库存在，则退出
     if row.0.is_some() {

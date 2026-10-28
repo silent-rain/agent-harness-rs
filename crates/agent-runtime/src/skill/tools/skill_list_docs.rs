@@ -13,7 +13,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -124,7 +124,11 @@ impl Tool for SkillListDocsTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let skill_code = &args.skill_code;
 
         if !self.available_skills.contains(skill_code) {
@@ -198,9 +202,12 @@ mod tests {
         let tool =
             SkillListDocsTool::new(tmp.path()).with_available_skills(vec!["my-skill".to_string()]);
         let result = tool
-            .call(SkillListDocsArgs {
-                skill_code: "my-skill".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillListDocsArgs {
+                    skill_code: "my-skill".to_string(),
+                },
+            )
             .await
             .unwrap();
 
@@ -216,9 +223,12 @@ mod tests {
         let tool =
             SkillListDocsTool::new(tmp.path()).with_available_skills(vec!["allowed".to_string()]);
         let result = tool
-            .call(SkillListDocsArgs {
-                skill_code: "unknown".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillListDocsArgs {
+                    skill_code: "unknown".to_string(),
+                },
+            )
             .await;
 
         assert!(result.is_err());
@@ -232,9 +242,12 @@ mod tests {
         let tool = SkillListDocsTool::new(tmp.path())
             .with_available_skills(vec!["empty-skill".to_string()]);
         let result = tool
-            .call(SkillListDocsArgs {
-                skill_code: "empty-skill".to_string(),
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillListDocsArgs {
+                    skill_code: "empty-skill".to_string(),
+                },
+            )
             .await
             .unwrap();
 

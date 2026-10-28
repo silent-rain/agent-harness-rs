@@ -158,15 +158,17 @@ async fn scenario_manual_registry() -> AgentResult<()> {
 
     println!("已连接服务: {:?}", registry.service_names());
 
-    // 查看可用工具列表
-    let tools = registry.list_all_enabled_tools().await?;
-    println!("可用工具数量: {}", tools.len());
-    for (_, tool) in &tools {
-        println!(
-            "  - {} : {}",
-            tool.name,
-            tool.description.as_deref().unwrap_or("")
-        );
+    // 查看可用工具列表（已按配置的启用范围过滤）
+    for service_name in registry.service_names() {
+        let tools = registry.tools_of(service_name).await?;
+        println!("[{service_name}] 可用工具 {} 个:", tools.len());
+        for tool in &tools {
+            println!(
+                "  - {} : {}",
+                tool.name,
+                tool.description.as_deref().unwrap_or("")
+            );
+        }
     }
 
     // 注入已连接的注册表

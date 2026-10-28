@@ -64,7 +64,10 @@ pub struct OpenAIRawStreamAdapter {
 #[derive(Debug, Clone)]
 pub enum RawAdapterOutput {
     /// OpenAI 标准分片
-    Chunk(ChatCompletionChunk),
+    ///
+    /// 装箱承载：`ChatCompletionChunk` 由 async-openai 定义、体积较大
+    /// （300+ 字节），装箱避免枚举整体尺寸被单个变体撑大。
+    Chunk(Box<ChatCompletionChunk>),
     /// 流结束信号
     Done,
     /// 此事件不需要对外产物
@@ -102,7 +105,7 @@ impl OpenAIRawStreamAdapter {
         match event {
             AgentStreamEvent::TextDelta { delta, .. } => {
                 let chunk = self.content_chunk(delta);
-                vec![RawAdapterOutput::Chunk(chunk)]
+                vec![RawAdapterOutput::Chunk(Box::new(chunk))]
             }
 
             AgentStreamEvent::ToolCallsPlanned { calls, .. } => {
@@ -110,7 +113,7 @@ impl OpenAIRawStreamAdapter {
                 for call in calls {
                     let chunk =
                         self.tool_call_chunk(call.call_id, call.tool_name, call.arguments_json);
-                    outputs.push(RawAdapterOutput::Chunk(chunk));
+                    outputs.push(RawAdapterOutput::Chunk(Box::new(chunk)));
                     self.tool_call_index += 1;
                 }
                 outputs
@@ -128,7 +131,7 @@ impl OpenAIRawStreamAdapter {
                     OpenAIFinishReason::Stop
                 };
                 vec![
-                    RawAdapterOutput::Chunk(self.finish_chunk(finish_reason)),
+                    RawAdapterOutput::Chunk(Box::new(self.finish_chunk(finish_reason))),
                     RawAdapterOutput::Done,
                 ]
             }
@@ -174,6 +177,8 @@ impl OpenAIRawStreamAdapter {
             usage: None,
             system_fingerprint: None,
             service_tier: None,
+            obfuscation: None,
+            moderation: None,
         }
     }
 
@@ -221,6 +226,8 @@ impl OpenAIRawStreamAdapter {
             usage: None,
             system_fingerprint: None,
             service_tier: None,
+            obfuscation: None,
+            moderation: None,
         }
     }
 
@@ -247,6 +254,8 @@ impl OpenAIRawStreamAdapter {
             usage: None,
             system_fingerprint: None,
             service_tier: None,
+            obfuscation: None,
+            moderation: None,
         }
     }
 }

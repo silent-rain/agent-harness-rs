@@ -54,14 +54,17 @@ pub struct McpServersWrapper {
 
 /// MCP 服务配置
 ///
-/// 描述智能体绑定的 MCP 服务及其允许调用的工具白名单。
-/// 白名单来源于 `t_agent_mcp_service_rel.enabled_tools` 字段，仅列表中的工具可被调用；
-/// 列表为空时该服务无可用工具。
+/// 描述智能体绑定的 MCP 服务及其允许调用的工具范围。
+/// 允许列表来源于 `t_agent_mcp_service_rel.enabled_tools`（空则回退注册表默认值），
+/// 语义由 [`crate::mcp::ToolPolicy`] 归一：**空列表或含 `"*"` = 全部工具可用**，
+/// 其余情况仅列表中的工具可被调用。
+///
+/// 需要「一个工具都不给」时不要把列表置空，而应将该服务整体置为未启用。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServerConfig {
     /// MCP 服务名称
     pub service_name: String,
-    /// 已启用的工具白名单（空=无可用工具）
+    /// 允许调用的工具列表（空 或 含 "*" = 全部可用）
     pub allowed_tools: Vec<String>,
     /// MCP 服务配置
     pub server_config: McpServiceEntry,
@@ -166,6 +169,9 @@ pub struct McpServiceInfo {
     pub transport_type: String,
     /// Number of available tools
     pub tool_count: usize,
+    /// 服务端自述（MCP 握手 `server_info.description`，未提供时不输出该字段）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// MCP 服务描述信息

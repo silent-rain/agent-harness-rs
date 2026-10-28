@@ -2,7 +2,7 @@
 //!
 //! 列出当前所有已连接的 MCP 服务，返回每个服务的名称、传输类型和可用工具数量。
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{error::Error, types::mcp::McpServiceInfo};
@@ -10,7 +10,7 @@ use crate::{error::Error, types::mcp::McpServiceInfo};
 /// 列出所有已连接的 MCP 服务
 ///
 /// 返回每个服务的名称、传输类型和可用工具数量。
-/// 工具在 `McpRegistry::build_toolset()` 时通过快照数据构建，
+/// 工具在 `McpRegistry::build_tools()` 时通过快照数据构建，
 /// 无需持有 `McpRegistry` 引用。
 pub struct McpServiceListTool {
     /// Snapshot of connected services
@@ -60,7 +60,11 @@ impl Tool for McpServiceListTool {
         })
     }
 
-    async fn call(&self, _args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        _args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         Ok(McpServiceListOutput {
             total: self.services.len(),
             services: self.services.clone(),
@@ -75,7 +79,10 @@ mod tests {
     #[tokio::test]
     async fn test_mcp_service_list_empty() {
         let tool = McpServiceListTool::new(vec![]);
-        let result = tool.call(McpServiceListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), McpServiceListArgs {})
+            .await
+            .unwrap();
         assert_eq!(result.total, 0);
         assert!(result.services.is_empty());
     }
@@ -87,15 +94,20 @@ mod tests {
                 name: "filesystem".to_string(),
                 transport_type: "stdio".to_string(),
                 tool_count: 3,
+                description: Some("Local filesystem access".to_string()),
             },
             McpServiceInfo {
                 name: "web-search".to_string(),
                 transport_type: "http".to_string(),
                 tool_count: 1,
+                description: None,
             },
         ];
         let tool = McpServiceListTool::new(services);
-        let result = tool.call(McpServiceListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), McpServiceListArgs {})
+            .await
+            .unwrap();
         assert_eq!(result.total, 2);
         assert_eq!(result.services[0].name, "filesystem");
         assert_eq!(result.services[1].tool_count, 1);

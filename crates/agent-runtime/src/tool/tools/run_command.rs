@@ -3,7 +3,7 @@
 //! 执行 Shell 命令。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
@@ -70,7 +70,11 @@ impl Tool for RunCommandTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let working_dir = args.working_directory.as_deref().unwrap_or(".");
         let timeout_secs = args.timeout_secs.unwrap_or(30);
 

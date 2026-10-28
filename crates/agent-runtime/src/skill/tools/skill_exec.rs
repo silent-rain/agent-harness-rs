@@ -25,7 +25,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tokio::process::Command;
@@ -204,7 +204,11 @@ impl Tool for SkillExecTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let skill_code = &args.skill_code;
 
         // Validate skill_code is in the available set
@@ -595,13 +599,16 @@ mod tests {
             SkillExecTool::new(tmp.path()).with_available_skills(vec!["allowed".to_string()]);
 
         let result = tool
-            .call(SkillExecArgs {
-                skill_code: "unknown".to_string(),
-                script: "run.sh".to_string(),
-                args: vec![],
-                output_patterns: vec![],
-                env: vec![],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillExecArgs {
+                    skill_code: "unknown".to_string(),
+                    script: "run.sh".to_string(),
+                    args: vec![],
+                    output_patterns: vec![],
+                    env: vec![],
+                },
+            )
             .await;
 
         assert!(result.is_err());
@@ -623,13 +630,16 @@ mod tests {
             SkillExecTool::new(tmp.path()).with_available_skills(vec!["my-skill".to_string()]);
 
         let result = tool
-            .call(SkillExecArgs {
-                skill_code: "my-skill".to_string(),
-                script: "assets/run.sh".to_string(),
-                args: vec![],
-                output_patterns: vec!["output/*.json".to_string()],
-                env: vec![],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillExecArgs {
+                    skill_code: "my-skill".to_string(),
+                    script: "assets/run.sh".to_string(),
+                    args: vec![],
+                    output_patterns: vec!["output/*.json".to_string()],
+                    env: vec![],
+                },
+            )
             .await
             .unwrap();
 
@@ -653,13 +663,16 @@ mod tests {
             SkillExecTool::new(tmp.path()).with_available_skills(vec!["my-skill".to_string()]);
 
         let result = tool
-            .call(SkillExecArgs {
-                skill_code: "my-skill".to_string(),
-                script: "run.sh".to_string(),
-                args: vec![],
-                output_patterns: vec![],
-                env: vec![],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillExecArgs {
+                    skill_code: "my-skill".to_string(),
+                    script: "run.sh".to_string(),
+                    args: vec![],
+                    output_patterns: vec![],
+                    env: vec![],
+                },
+            )
             .await
             .unwrap();
 
@@ -683,16 +696,19 @@ mod tests {
             SkillExecTool::new(tmp.path()).with_available_skills(vec!["my-skill".to_string()]);
 
         let result = tool
-            .call(SkillExecArgs {
-                skill_code: "my-skill".to_string(),
-                script: "run.sh".to_string(),
-                args: vec!["hello".to_string()],
-                output_patterns: vec![],
-                env: vec![EnvVar {
-                    key: "MY_VAR".to_string(),
-                    value: "world".to_string(),
-                }],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillExecArgs {
+                    skill_code: "my-skill".to_string(),
+                    script: "run.sh".to_string(),
+                    args: vec!["hello".to_string()],
+                    output_patterns: vec![],
+                    env: vec![EnvVar {
+                        key: "MY_VAR".to_string(),
+                        value: "world".to_string(),
+                    }],
+                },
+            )
             .await
             .unwrap();
 
@@ -712,13 +728,16 @@ mod tests {
             SkillExecTool::new(tmp.path()).with_available_skills(vec!["my-skill".to_string()]);
 
         let result = tool
-            .call(SkillExecArgs {
-                skill_code: "my-skill".to_string(),
-                script: "fail.sh".to_string(),
-                args: vec![],
-                output_patterns: vec![],
-                env: vec![],
-            })
+            .call(
+                &mut ToolContext::new(),
+                SkillExecArgs {
+                    skill_code: "my-skill".to_string(),
+                    script: "fail.sh".to_string(),
+                    args: vec![],
+                    output_patterns: vec![],
+                    env: vec![],
+                },
+            )
             .await
             .unwrap();
 

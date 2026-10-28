@@ -73,6 +73,7 @@ nject = "0.5"
 
 # AI
 rig-core = "0.45"
+rig-reqwest = "0.45"
 async-openai = "0.42"
 rmcp = "3.8"
 a2a-rs-core = "1.0"

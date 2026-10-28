@@ -227,7 +227,7 @@ pub trait AgentOpenAI: Agent {
             while let Some(event) = stream.next().await {
                 for output in adapter.translate(event) {
                     match output {
-                        AdapterOutput::Chunk(chunk) => yield chunk,
+                        AdapterOutput::Chunk(chunk) => yield *chunk,
                         AdapterOutput::Done => return,
                         _ => {}
                     }
@@ -300,7 +300,7 @@ pub trait AgentOpenAI: Agent {
                 let mut done = false;
                 for output in adapter.translate(event) {
                     match output {
-                        RawAdapterOutput::Chunk(chunk) => yield chunk,
+                        RawAdapterOutput::Chunk(chunk) => yield *chunk,
                         RawAdapterOutput::Done => {
                             done = true;
                             break;
@@ -411,6 +411,8 @@ async fn collect_stream_to_completion(
         service_tier: None,
         #[allow(deprecated)]
         system_fingerprint: None,
+        metadata: None,
+        moderation: None,
     }
 }
 
@@ -421,9 +423,9 @@ async fn collect_stream_to_completion(
 fn map_usage(usage: Option<rig_core::completion::Usage>) -> CompletionUsage {
     match usage {
         Some(u) => CompletionUsage {
-            prompt_tokens: u.input_tokens as u32,
-            completion_tokens: u.output_tokens as u32,
-            total_tokens: u.total_tokens as u32,
+            prompt_tokens: u.input_tokens.unwrap_or(0) as u32,
+            completion_tokens: u.output_tokens.unwrap_or(0) as u32,
+            total_tokens: u.total_tokens.unwrap_or(0) as u32,
             prompt_tokens_details: None,
             completion_tokens_details: None,
         },

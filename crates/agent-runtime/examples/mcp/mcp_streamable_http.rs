@@ -185,7 +185,7 @@ async fn scenario_builder_api() -> AgentResult<()> {
 /// 场景 2：手动构建 McpRegistry，连接后查看服务详情。
 ///
 /// 演示如何在注入 AgentBuilder 前，先通过 McpRegistry 检查服务状态
-/// 和获取完整的工具列表（包含未过白名单过滤的全量工具）。
+/// 并查看已启用（过滤后）的工具列表。
 async fn scenario_manual_registry() -> AgentResult<()> {
     println!("\n=== 场景 2：手动构建 McpRegistry（Streamable HTTP）===");
 
@@ -202,7 +202,7 @@ async fn scenario_manual_registry() -> AgentResult<()> {
     println!("已连接服务列表: {:?}", registry.service_names());
 
     // 查看服务描述（通过 MCP 握手获取的元数据）
-    if let Ok(desc) = registry.get_service_description("streamable-http-service") {
+    if let Ok(desc) = registry.service_description("streamable-http-service") {
         println!("\n服务元数据:");
         println!("  名称: {}", desc.server_name);
         println!("  版本: {}", desc.server_version);
@@ -215,26 +215,14 @@ async fn scenario_manual_registry() -> AgentResult<()> {
         println!("  协议版本: {}", desc.protocol_version);
     }
 
-    // 查看白名单过滤后的可用工具
-    let enabled_tools = registry.list_all_enabled_tools().await?;
-    println!("\n白名单过滤后可用工具 ({} 个):", enabled_tools.len());
-    for (_, tool) in &enabled_tools {
-        println!(
-            "  ✓ {} — {}",
-            tool.name,
-            tool.description.as_deref().unwrap_or("无描述")
-        );
-    }
-
-    // 查看服务全量工具（不经过白名单过滤）
-    if let Ok((_, all_tools)) = registry
-        .get_service_all_tools("streamable-http-service")
-        .await
-    {
-        println!("\n服务全量工具 ({} 个):", all_tools.len());
-        for tool in &all_tools {
+    // 查看可用工具（已按配置的启用范围过滤）
+    println!();
+    for service_name in registry.service_names() {
+        let tools = registry.tools_of(service_name).await?;
+        println!("[{service_name}] 可用工具 {} 个:", tools.len());
+        for tool in &tools {
             println!(
-                "  - {} — {}",
+                "  ✓ {} — {}",
                 tool.name,
                 tool.description.as_deref().unwrap_or("无描述")
             );

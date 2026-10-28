@@ -4,7 +4,7 @@ use std::sync::Arc;
 #[cfg(feature = "skill")]
 use std::collections::HashSet;
 
-use rig_core::tool::ToolDyn;
+use rig_core::tool::{DynamicTool, Tool};
 #[cfg(any(
     feature = "rule",
     feature = "skill",
@@ -24,7 +24,10 @@ use crate::{
 use crate::{mcp::McpRegistry, types::mcp::McpServerConfig};
 
 #[cfg(feature = "rule")]
-use crate::{rule::RuleListTool, types::rule::RuleConfig};
+use crate::{
+    rule::{RuleListTool, RuleLoadTool},
+    types::rule::RuleConfig,
+};
 
 #[cfg(feature = "skill")]
 use crate::{
@@ -388,13 +391,13 @@ impl AgentBuilder {
     /// 追加单个候选工具
     ///
     /// 同名工具会被覆盖。作为内置工具（`ToolSource::Builtin`）入池。
-    pub fn add_tool(mut self, tool: impl ToolDyn + 'static) -> Self {
+    pub fn add_tool(mut self, tool: impl Tool + 'static) -> Self {
         self.tool_pool.register_rig_tool(tool, ToolSource::Builtin);
         self
     }
 
     /// 追加多个候选工具
-    pub fn add_tools(mut self, tools: Vec<Box<dyn ToolDyn>>) -> Self {
+    pub fn add_tools(mut self, tools: Vec<DynamicTool>) -> Self {
         self.tool_pool.register_many(tools, ToolSource::Builtin);
         self
     }
@@ -517,7 +520,7 @@ impl AgentBuilder {
     /// Load rules from the bundle.
     ///
     /// `bundle` 在 `merge` / `normalize` 阶段已完成去重，本方法仅负责
-    /// 注册 `rule_list` 工具供 LLM 内省当前规则集。
+    /// 注册 `rule_list`（摘要内省）与 `rule_load`（按名称取正文）工具。
     #[cfg(feature = "rule")]
     async fn load_rules(&mut self) -> Result<(), Error> {
         if self.bundle.rule_configs.is_empty() {
@@ -525,13 +528,14 @@ impl AgentBuilder {
             return Ok(());
         }
 
-        // 注册 rule_list 内省工具（默认 Builtin 来源）
+        // 注册规则内省工具（默认 Builtin 来源）
         self.tool_pool
-            .register_builtin(RuleListTool::new(&self.bundle.rule_configs));
+            .register_builtin(RuleListTool::new(&self.bundle.rule_configs))
+            .register_builtin(RuleLoadTool::new(&self.bundle.rule_configs));
 
         tracing::info!(
             rule_count = self.bundle.rule_configs.len(),
-            "Rules injected into bundle"
+            "Registered rule_list and rule_load tools for rule introspection"
         );
 
         Ok(())
@@ -626,7 +630,7 @@ impl AgentBuilder {
     /// 1. 将 `bundle.a2a_configs` 注入 `a2a_registry`（pending 队列）
     /// 2. 调用 `A2aRegistry::connect_all()` 统一建立连接
     /// 3. 调用 [`A2aRegistry::build_tools`] 拿到工具列表，
-    ///    通过 [`ToolPool::register_contextual`] 一次性入池（标记 `ToolSource::A2a`）
+    ///    逐个转成 [`DynamicTool`](rig_core::tool::DynamicTool) 后入池（标记 `ToolSource::A2a`）
     #[cfg(feature = "a2a")]
     async fn load_a2a(&mut self) -> Result<(), Error> {
         if !self.bundle.a2a_configs.is_empty() {
@@ -645,7 +649,8 @@ impl AgentBuilder {
         let a2a_tools = self.a2a_registry.build_tools();
         let loaded = a2a_tools.len();
         for tool in a2a_tools {
-            self.tool_pool.register_contextual(tool, ToolSource::A2a);
+            self.tool_pool
+                .register_dynamic(tool.into_dynamic_tool(), ToolSource::A2a);
         }
         tracing::info!(
             a2a_count = loaded,
@@ -702,7 +707,7 @@ impl AgentBuilder {
 
                 for tool in flat_tools {
                     self.tool_pool
-                        .register_contextual(tool, ToolSource::SubAgent);
+                        .register_dynamic(tool.into_dynamic_tool(), ToolSource::SubAgent);
                 }
 
                 tracing::info!(
@@ -720,8 +725,7 @@ impl AgentBuilder {
                     self.services.clone(),
                 );
 
-                self.tool_pool
-                    .register_contextual(delegate_tool, ToolSource::SubAgent);
+                self.tool_pool.register_sub_agent(delegate_tool);
 
                 tracing::info!(
                     sub_agent_count = self.bundle.sub_agent_bundles.len(),

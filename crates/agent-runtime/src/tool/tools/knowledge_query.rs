@@ -3,7 +3,7 @@
 //! 查询指定的知识库，获取相关信息。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{error::Error, knowledge::KnowledgeQueryResult, runtime::services::RuntimeServices};
@@ -78,7 +78,11 @@ impl Tool for KnowledgeQueryTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         // TODO: 从运行时上下文中获取 user_id
         let user_id = 0; // 临时值，需要从运行时上下文获取
         let top_k = args.top_k.unwrap_or(5) as usize;
@@ -120,7 +124,7 @@ mod tests {
             top_k: Some(3),
         };
 
-        let result = tool.call(args).await;
+        let result = tool.call(&mut ToolContext::new(), args).await;
         assert!(result.is_ok());
 
         let output = result.unwrap();

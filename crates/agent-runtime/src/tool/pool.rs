@@ -1,35 +1,48 @@
 //! Shared tool pool backing every agent's tool wiring.
 //!
 //! The pool is the **single source of truth** for an agent's available tools:
-//! every tool instance lives here as an `Arc<dyn ContextualTool>` together
-//! with its [`ToolSource`] tag. The runtime [`ContextualToolSet`] consumed
-//! by `ToolExecutor` is a flat clone of the pool produced via
-//! [`ToolPool::into_contextual_toolset`].
-//!
-//! ## Why a single map?
-//!
-//! Earlier revisions stored two parallel maps — one for stateless
-//! `rig::ToolDyn` instances and another for [`ContextualTool`]s — and merged
-//! them at every dispatch point. Stateless tools are now auto-wrapped via
-//! [`StatelessAsContextual`] at registration time, so the pool only needs a
-//! single uniform map and the resulting [`ContextualToolSet`] requires no
-//! merge / fall-through logic.
+//! every tool lives here as a rig [`DynamicTool`] together with its
+//! [`ToolSource`] tag. `ToolExecutor` dispatches directly against the pool —
+//! there is no second registry type, and stateless / contextual tools share
+//! one code path (both are `DynamicTool` receiving the same
+//! [`ToolContext`](rig_core::tool::ToolContext)).
 //!
 //! ## Sharing model
 //!
-//! Tool instances are stored as `Arc<dyn ContextualTool>`, so a parent agent
-//! and any sub-agents reusing the same `Arc<ToolPool>` share the underlying
-//! resources (HTTP clients, caches, …). Deriving a [`ContextualToolSet`]
-//! only clones the `Arc`s, never the underlying instance.
+//! `DynamicTool` is `Clone` over an `Arc`-held callback, so a parent agent and
+//! any sub-agents reusing the same `Arc<ToolPool>` share the underlying
+//! instances (HTTP clients, caches, …) — deriving a dispatch list never
+//! duplicates them.
 
 use std::{collections::HashMap, sync::Arc};
 
-use rig_core::tool::ToolDyn;
+use rig_core::{
+    completion::ToolDefinition,
+    tool::{DynamicTool, ToolContext},
+};
 
 use crate::{
-    tool::contextual::{ContextualTool, ContextualToolDyn, ContextualToolSet, RigToolWrapper},
+    error::Error,
+    tool::{
+        rig_bridge::{dynamic_tool, tool_output_to_string},
+        // `tool_name_of` 由 rig_bridge 统一提供，避免名称规则分叉
+    },
     types::tool::ToolSource,
 };
+
+/// 工具派发错误。
+///
+/// `ToolExecutor` 会把它折叠成字符串写入 `ToolCallFinished` 审计事件，
+/// 因此变体划分保持最小：工具自身报错 / 名称未注册。
+#[derive(Debug, thiserror::Error)]
+pub enum ToolCallError {
+    /// 工具执行失败（含参数解析失败）。
+    #[error("tool error: {0}")]
+    Tool(#[from] Error),
+    /// 没有注册该名称的工具。
+    #[error("tool not found: {0}")]
+    NotFound(String),
+}
 
 /// Unified tool pool: instance + source live in one table.
 ///
@@ -39,12 +52,8 @@ use crate::{
 /// — no instance is duplicated.
 #[derive(Default, Clone)]
 pub struct ToolPool {
-    /// `tool_name` → contextual tool instance (shared via `Arc`).
-    ///
-    /// Stateless `rig::ToolDyn` tools are wrapped through
-    /// [`StatelessAsContextual`] at registration time, so the runtime sees a
-    /// uniform `ContextualToolDyn` shape regardless of source.
-    tools: HashMap<String, Arc<dyn ContextualToolDyn>>,
+    /// `tool_name` → 运行期工具实例（`DynamicTool` 内部以 `Arc` 共享回调）。
+    tools: HashMap<String, Arc<DynamicTool>>,
     /// `tool_name` → source tag (mirrors `tools` keys).
     sources: HashMap<String, ToolSource>,
 }
@@ -59,48 +68,24 @@ impl ToolPool {
 
     /// Register any `rig::Tool` implementation with an explicit source tag.
     ///
-    /// This is the single low-level entry point for all stateless rig tools.
-    /// The tool is wrapped through [`RigToolWrapper`] so it sits in the same
-    /// uniform map as stateful [`ContextualTool`]s. Same-named tools
-    /// overwrite both the instance and the source (last-wins).
+    /// This is the single low-level entry point for typed tools: the tool is
+    /// adapted into a [`DynamicTool`] and shares the same dispatch path as
+    /// runtime-defined tools. Same-named tools overwrite both the instance and
+    /// the source (last-wins).
     pub fn register_rig_tool<T>(&mut self, tool: T, source: ToolSource) -> &mut Self
     where
-        T: ToolDyn + 'static,
+        T: rig_core::tool::Tool + 'static,
     {
-        let adapter = RigToolWrapper::new(Arc::new(tool));
-        let name = adapter.name().to_string();
-        self.sources.insert(name.clone(), source);
-        self.tools.insert(name, Arc::new(adapter));
-        self
+        self.register_dynamic(dynamic_tool(tool), source)
     }
 
-    /// Register an already-boxed stateless tool with an explicit source tag.
+    /// Register an already-erased [`DynamicTool`] with an explicit source tag.
     ///
-    /// Useful for trait-object factories such as MCP remote tools where the
-    /// concrete type is opaque.
-    pub fn register_rig_tool_boxed(
-        &mut self,
-        tool: Box<dyn ToolDyn>,
-        source: ToolSource,
-    ) -> &mut Self {
-        let adapter = RigToolWrapper::new(Arc::from(tool));
-        let name = adapter.name().to_string();
-        self.sources.insert(name.clone(), source);
-        self.tools.insert(name, Arc::new(adapter));
-        self
-    }
-
-    /// Register a stateful [`ContextualTool`] by value with an explicit
-    /// source tag.
-    ///
-    /// Used for tools that need [`ToolCallCtx`](super::contextual::ToolCallCtx)
-    /// at call time (e.g. sub-agent delegation). Same-named tools overwrite
-    /// both the instance and the source (last-wins).
-    pub fn register_contextual<T>(&mut self, tool: T, source: ToolSource) -> &mut Self
-    where
-        T: ContextualTool,
-    {
-        let name = ContextualTool::name(&tool).to_string();
+    /// Used by every dynamic-name tool and by trait-object factories such as
+    /// MCP remote tools where the concrete type is opaque. Same-named tools
+    /// overwrite both the instance and the source (last-wins).
+    pub fn register_dynamic(&mut self, tool: DynamicTool, source: ToolSource) -> &mut Self {
+        let name = tool.name().to_string();
         self.sources.insert(name.clone(), source);
         self.tools.insert(name, Arc::new(tool));
         self
@@ -110,47 +95,47 @@ impl ToolPool {
 
     /// Register a built-in tool (`ToolSource::Builtin`).
     ///
-    /// Accepts any `rig::Tool` implementation (auto-derives `ToolDyn`).
-    pub fn register_builtin<T: ToolDyn + 'static>(&mut self, tool: T) -> &mut Self {
+    /// Accepts any `rig::Tool` implementation.
+    pub fn register_builtin<T: rig_core::tool::Tool + 'static>(&mut self, tool: T) -> &mut Self {
         self.register_rig_tool(tool, ToolSource::Builtin)
     }
 
     /// Register a skill-derived tool (`ToolSource::Skill`).
-    pub fn register_skill<T: ToolDyn + 'static>(&mut self, tool: T) -> &mut Self {
+    pub fn register_skill<T: rig_core::tool::Tool + 'static>(&mut self, tool: T) -> &mut Self {
         self.register_rig_tool(tool, ToolSource::Skill)
     }
 
     /// Register a command-derived tool. Commands surface through built-in
     /// introspection tools (`command_load` / `command_list`), so they tag as
     /// `ToolSource::Builtin`.
-    pub fn register_command<T: ToolDyn + 'static>(&mut self, tool: T) -> &mut Self {
+    pub fn register_command<T: rig_core::tool::Tool + 'static>(&mut self, tool: T) -> &mut Self {
         self.register_rig_tool(tool, ToolSource::Builtin)
     }
 
     /// Register an MCP-derived tool by value (`ToolSource::Mcp`).
-    pub fn register_mcp<T: ToolDyn + 'static>(&mut self, tool: T) -> &mut Self {
+    pub fn register_mcp<T: rig_core::tool::Tool + 'static>(&mut self, tool: T) -> &mut Self {
         self.register_rig_tool(tool, ToolSource::Mcp)
     }
 
     /// Register a sub-agent delegation tool (`ToolSource::SubAgent`).
-    pub fn register_sub_agent<T: ToolDyn + 'static>(&mut self, tool: T) -> &mut Self {
+    pub fn register_sub_agent<T: rig_core::tool::Tool + 'static>(&mut self, tool: T) -> &mut Self {
         self.register_rig_tool(tool, ToolSource::SubAgent)
     }
+
     // ─── Bulk helpers ───────────────────────────────────────────────────
 
-    /// Bulk-register a list of already-boxed stateless tools under the same
-    /// source tag.
+    /// Bulk-register a list of already-erased tools under the same source tag.
     ///
     /// Convenient with helpers such as `all_builtin_tools()` that yield
-    /// `Vec<Box<dyn ToolDyn>>`. Same-named tools overwrite previous entries.
-    pub fn register_many(&mut self, tools: Vec<Box<dyn ToolDyn>>, source: ToolSource) -> &mut Self {
+    /// `Vec<DynamicTool>`. Same-named tools overwrite previous entries.
+    pub fn register_many(&mut self, tools: Vec<DynamicTool>, source: ToolSource) -> &mut Self {
         for tool in tools {
-            self.register_rig_tool_boxed(tool, source);
+            self.register_dynamic(tool, source);
         }
         self
     }
 
-    /// Merge another pool into `self`, sharing `Arc`s and source tags.
+    /// Merge another pool into `self`, sharing instances and source tags.
     ///
     /// Same-named tools overwrite previous entries.
     pub fn merge(&mut self, other: &ToolPool) -> &mut Self {
@@ -165,9 +150,7 @@ impl ToolPool {
 
     /// Re-tag every registered tool with the given source.
     ///
-    /// Replaces the prior pattern of "drain into a Vec, then re-register"
-    /// which silently flipped source tags as a side effect. The tool
-    /// instances themselves are left untouched.
+    /// The tool instances themselves are left untouched.
     pub fn retag_all(&mut self, source: ToolSource) -> &mut Self {
         for slot in self.sources.values_mut() {
             *slot = source;
@@ -217,28 +200,64 @@ impl ToolPool {
         self.tools.keys().map(String::as_str)
     }
 
-    // ─── ContextualToolSet derivation ───────────────────────────────────
+    // ─── Dispatch ───────────────────────────────────────────────────────
 
-    /// Derive a [`ContextualToolSet`] containing every registered tool.
+    /// 返回每个已注册工具的 [`ToolDefinition`]，供 LLM function-calling 使用。
     ///
-    /// Boxed adapters in the resulting set hold `Arc::clone`s of the pool's
-    /// instances, so multiple derived sets share the same backing objects.
-    /// This is the canonical entry point used by `LlmAgent` to assemble the
-    /// per-run toolset; the resulting wrapper is what `ToolExecutor`
-    /// dispatches against.
-    pub fn into_contextual_toolset(&self) -> ContextualToolSet {
-        let mut set = ContextualToolSet::new();
-        for arc in self.tools.values() {
-            set.register(Arc::clone(arc));
-        }
-        set
+    /// 顺序不保证稳定。
+    pub fn tool_definitions(&self) -> Vec<ToolDefinition> {
+        self.tools.values().map(|tool| tool.definition()).collect()
+    }
+
+    /// 派发一次工具调用。
+    ///
+    /// 参数以 LLM 给出的 JSON 文本传入，结果折叠为字符串回填给模型；
+    /// 上下文（运行身份 + 事件通道作用域）由调用方装配后传入。
+    ///
+    /// # Parameters
+    ///
+    /// * `ctx` - 本次调用的 [`ToolContext`]
+    /// * `name` - 工具名称（须已注册）
+    /// * `args_json` - LLM 给出的参数 JSON 文本
+    pub async fn call(
+        &self,
+        ctx: &mut ToolContext,
+        name: &str,
+        args_json: &str,
+    ) -> Result<String, ToolCallError> {
+        let tool = self
+            .tools
+            .get(name)
+            .ok_or_else(|| ToolCallError::NotFound(name.to_string()))?;
+
+        let args: serde_json::Value =
+            serde_json::from_str(args_json).map_err(|e| Error::ToolExecution {
+                tool_name: name.to_string(),
+                message: format!("invalid arguments JSON: {e}"),
+            })?;
+        // 无参工具的模型输出常见为 `null`，统一归一为空对象
+        let args = if args.is_null() {
+            serde_json::json!({})
+        } else {
+            args
+        };
+
+        let output = tool
+            .run_with(ctx, args)
+            .await
+            .map_err(|e| Error::ToolExecution {
+                tool_name: name.to_string(),
+                message: e.message().to_string(),
+            })?;
+
+        Ok(tool_output_to_string(&output))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tool::{ListDirTool, ReadFileTool};
+    use crate::tool::{ListDirTool, ReadFileTool, rig_bridge::dynamic_tool};
 
     #[test]
     fn register_writes_instance_and_source_atomically() {
@@ -266,24 +285,26 @@ mod tests {
         assert_eq!(pool.source_of("read_file"), ToolSource::Skill);
     }
 
-    #[tokio::test]
-    async fn into_contextual_toolset_includes_all_tools() {
+    #[test]
+    fn tool_definitions_list_every_registered_tool() {
         let mut pool = ToolPool::new();
         pool.register_builtin(ReadFileTool)
             .register_builtin(ListDirTool);
 
-        let set = pool.into_contextual_toolset();
-        assert!(set.contains("read_file"));
-        assert!(set.contains("list_dir"));
-        let defs = set.tool_definitions();
-        assert_eq!(defs.len(), 2);
+        let mut names: Vec<String> = pool
+            .tool_definitions()
+            .iter()
+            .map(|def| def.name.to_string())
+            .collect();
+        names.sort();
+        assert_eq!(names, vec!["list_dir".to_string(), "read_file".to_string()]);
     }
 
     #[test]
     fn register_many_applies_same_source_to_all() {
         let mut pool = ToolPool::new();
         pool.register_many(
-            vec![Box::new(ReadFileTool), Box::new(ListDirTool)],
+            vec![dynamic_tool(ReadFileTool), dynamic_tool(ListDirTool)],
             ToolSource::Skill,
         );
         assert_eq!(pool.source_of("read_file"), ToolSource::Skill);

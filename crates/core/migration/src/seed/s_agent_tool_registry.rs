@@ -24,7 +24,7 @@ impl MigrationTrait for Migration {
                 tool_code: Set("list_dir".to_string()),
                 name: Set("目录列表工具".to_string()),
                 description: Set(
-                    "列出指定目录下的文件和子目录信息，包括文件大小和类型。".to_string(),
+                    "列出指定目录下的文件和子目录信息，包括文件大小和类型。".to_string()
                 ),
                 schema_json: Set(None),
                 enabled: Set(true),

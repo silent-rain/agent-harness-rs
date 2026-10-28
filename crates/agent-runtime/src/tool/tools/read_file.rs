@@ -3,7 +3,7 @@
 //! 读取指定路径的文件内容。
 //! 实现 `rig::Tool` trait，可直接注册到 `rig::ToolSet`。
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
@@ -67,7 +67,11 @@ impl Tool for ReadFileTool {
         })
     }
 
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         let content =
             tokio::fs::read_to_string(&args.path)
                 .await
@@ -115,7 +119,7 @@ mod tests {
             start_line: None,
             line_count: None,
         };
-        let result = tool.call(args).await;
+        let result = tool.call(&mut ToolContext::new(), args).await;
         assert!(result.is_ok());
     }
 
@@ -127,7 +131,7 @@ mod tests {
             start_line: None,
             line_count: None,
         };
-        let result = tool.call(args).await;
+        let result = tool.call(&mut ToolContext::new(), args).await;
         assert!(result.is_err());
     }
 }

@@ -7,37 +7,36 @@
 //! ```text
 //! McpRegistry
 //!   ├── connections: HashMap<service_name, McpConnection>
-//!   │     ├── server_sink (用于调用远端工具)
+//!   │     ├── peer    (用于调用远端工具)
+//!   │     ├── policy  (工具启用策略)
 //!   │     └── running (持有连接生命周期)
-//!   ├── pending_configs: Vec<PendingMcpConfig>  → 待连接的服务配置
+//!   ├── pending_configs: Vec<McpServerConfig>  → 待连接的服务配置
 //!   └── Methods:
-//!     ├── connects(configs)                     → 批量连接服务配置
-//!     ├── connect(service)                      → 直接连接单个服务
-//!     ├── connect_all()                         → 连接所有 pending 配置
-//!     ├── get_enabled_tools(service_name)        → 返回已过白名单过滤的原始工具列表
-//!     ├── list_all_enabled_tools()               → 返回所有服务的原始工具列表
-//!     ├── list_all_service_names()               → 返回所有已连接服务名称列表（owned）
-//!     ├── build_toolset()                        → 构建 ToolSet（含远端工具 + 内省工具）
-//!     └── get_service_description(service_name)  → 获取指定服务的描述信息
+//!     ├── add_config / add_configs / with_configs  → 注册待连接配置
+//!     ├── connect_all()                            → 连接所有 pending 配置
+//!     ├── service_names()                          → 已连接服务名称
+//!     ├── service_description(service_name)        → 服务握手元数据
+//!     ├── tools_of(service_name)                   → 单服务可用工具（已过策略）
+//!     └── build_tools()                            → 转 rig DynamicTool（含内省工具）
 //! ```
 //!
 //! ## 设计说明
 //!
 //! - 创建实例时仅注册配置，不执行 I/O 连接（延迟连接）
-//! - 通过 `connects()` 或 `connect()` 执行连接
-//! - 本地配置文件扫描由 [`crate::mcp::LocalMcpLoader`] 负责，Registry 只接收 `Vec<(String, McpServerConfig)>`
-//! - `McpRegistry` 只负责连接管理和工具列表查询，不做 LLM tool 转换
-//! - 将 `rmcp::model::Tool` 转换为 LLM 可调用的 `McpTool` 由调用方负责
+//! - 通过 `connect_all()` 批量连接；单服务失败记录警告并跳过，不影响其他服务
+//! - 本地配置文件扫描由 [`crate::mcp::LocalMcpLoader`] 负责，Registry 只接收 `Vec<McpServerConfig>`
+//! - `McpRegistry` 只负责连接管理和工具查询，`rmcp::model::Tool` → rig 工具由本模块内部完成
 //! - 连接生命周期由 `McpRegistry` 内部持有，对外透明（无需 `McpConnectionGuard`）
-//! - 每个 MCP 服务独立建立连接，连接失败时记录警告并跳过
-//! - `allowed_tools` 白名单：空列表=无可用工具，`["*"]`=所有工具可用
-//! - `build_toolset()` 自动注入内省工具（`McpServiceListTool`、`McpServiceToolsTool`）
-use std::collections::HashMap;
+//! - 工具启用语义**只有一份**：[`ToolPolicy`]。空列表或含 `"*"` = 全部启用；
+//!   需要「一个工具都不给」时不要绑定该服务（`enabled = false`），而不是给空列表
+//! - `build_tools()` 自动注入内省工具（`McpServiceListTool`、`McpServiceToolsTool`），
+//!   内省工具看到的是**过滤后**的工具，与 LLM 实际可调用范围一致
+use std::collections::{HashMap, HashSet};
 
-use rig_core::tool::{ToolDyn, rmcp::McpTool};
-use rmcp::service::ServerSink;
+use rig_core::tool::DynamicTool;
 use rmcp::{
-    model::{ClientCapabilities, ClientInfo, Implementation},
+    model::{ClientCapabilities, ClientConfig, Implementation},
+    service::{Peer, RoleClient},
     transport::{
         StreamableHttpClientTransport, streamable_http_client::StreamableHttpClientTransportConfig,
     },
@@ -46,23 +45,87 @@ use tracing::{debug, info, warn};
 
 use crate::{
     error::{AgentResult, Error},
-    mcp::{McpServiceListTool, McpServiceToolsTool},
+    mcp::{McpServiceListTool, McpServiceToolsTool, McpToolExecTool},
+    tool::dynamic_tool,
     types::mcp::{
         McpServerConfig, McpServiceDescription, McpServiceEntry, McpServiceInfo, McpToolInfo,
     },
 };
+/// MCP 工具启用策略
+///
+/// 由 [`McpServerConfig::allowed_tools`] 归一而来，是「哪些工具对 LLM 可见」的**唯一**解释点：
+///
+/// - 空列表或缺省 → [`ToolPolicy::All`]
+/// - 列表中含 `"*"` → [`ToolPolicy::All`]
+/// - 其余 → [`ToolPolicy::Only`]
+///
+/// 「一个工具都不给」不在工具粒度表达：应直接把服务置于未启用状态（不绑定 / `enabled = false`）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum ToolPolicy {
+    /// 不限制：服务声明的全部工具均可用
+    #[default]
+    All,
+    /// 仅允许列出的工具
+    Only(HashSet<String>),
+}
+
+impl ToolPolicy {
+    /// 从配置的允许列表归一为策略（唯一入口）
+    ///
+    /// # Parameters
+    ///
+    /// * `allowed_tools` - 配置中的工具列表，空或含 `"*"` 表示全部启用
+    pub fn from_config(allowed_tools: &[String]) -> Self {
+        if allowed_tools.is_empty() || allowed_tools.iter().any(|name| name == "*") {
+            return Self::All;
+        }
+        Self::Only(allowed_tools.iter().cloned().collect())
+    }
+
+    /// 判断单个工具是否允许调用
+    ///
+    /// # Parameters
+    ///
+    /// * `tool_name` - MCP 服务端声明的工具名
+    pub fn allows(&self, tool_name: &str) -> bool {
+        match self {
+            Self::All => true,
+            Self::Only(names) => names.contains(tool_name),
+        }
+    }
+
+    /// 应用策略过滤工具列表
+    ///
+    /// `All` 时原样返回，不做任何复制。
+    ///
+    /// # Parameters
+    ///
+    /// * `tools` - MCP 服务端声明的完整工具列表
+    pub fn apply(&self, tools: Vec<rmcp::model::Tool>) -> Vec<rmcp::model::Tool> {
+        match self {
+            Self::All => tools,
+            Self::Only(_) => tools
+                .into_iter()
+                .filter(|tool| self.allows(tool.name.as_ref()))
+                .collect(),
+        }
+    }
+}
+
 /// 单个 MCP 连接
-#[allow(dead_code)]
 pub struct McpConnection {
     /// MCP 服务名称
     service_name: String,
     /// 传输类型
     transport_type: String,
-    /// MCP 客户端连接句柄（用于调用远端工具）
-    server_sink: ServerSink,
-    /// 白名单工具列表（空=无可用工具）
-    allowed_tools: Vec<String>,
+    /// MCP 客户端对端句柄（用于调用远端工具 / 拉取工具列表）
+    peer: Peer<RoleClient>,
+    /// 连接建立时握手得到服务端元数据快照
+    description: McpServiceDescription,
+    /// 工具启用策略
+    policy: ToolPolicy,
     /// 持有连接生命周期（类型擦除）
+    #[allow(dead_code)]
     running: Box<dyn std::any::Any + Send + Sync>,
 }
 
@@ -110,12 +173,12 @@ pub struct McpRegistry {
     /// Pending service configs waiting to be connected
     pending_configs: Vec<McpServerConfig>,
     /// MCP 客户端身份信息（agent 名称、版本等）
-    client: ClientInfo,
+    client: ClientConfig,
 }
 
 impl Default for McpRegistry {
     fn default() -> Self {
-        let client = ClientInfo::new(
+        let client = ClientConfig::new(
             ClientCapabilities::default(),
             Implementation::new("nucleus-agent", "0.1.0"),
         );
@@ -141,7 +204,7 @@ impl McpRegistry {
     /// # Parameters
     ///
     /// * `client` - 自定义 MCP 客户端身份信息
-    pub fn with_client(mut self, client: ClientInfo) -> Self {
+    pub fn with_client(mut self, client: ClientConfig) -> Self {
         self.client = client;
         self
     }
@@ -214,26 +277,19 @@ impl McpRegistry {
             return Ok(());
         }
 
-        for pending in &configs {
-            match self
-                .connect(
-                    &pending.service_name,
-                    &pending.server_config,
-                    &pending.allowed_tools,
-                )
-                .await
-            {
+        for config in &configs {
+            match self.connect(config).await {
                 Ok(()) => {
                     info!(
-                        service_name = %pending.service_name,
-                        transport = %pending.server_config.transport_type.as_deref().unwrap_or("unknown"),
+                        service_name = %config.service_name,
+                        transport = %config.server_config.transport_type.as_deref().unwrap_or("unknown"),
                         "MCP service connected"
                     );
                 }
                 Err(e) => {
                     warn!(
-                        service_name = %pending.service_name,
-                        transport = %pending.server_config.transport_type.as_deref().unwrap_or("unknown"),
+                        service_name = %config.service_name,
+                        transport = %config.server_config.transport_type.as_deref().unwrap_or("unknown"),
                         error = %e,
                         "MCP service connection failed, skipped"
                     );
@@ -260,18 +316,21 @@ impl McpRegistry {
     }
 
     /// 连接单个 MCP 服务
-    pub async fn connect(
-        &mut self,
-        service_name: &str,
-        config: &McpServiceEntry,
-        allowed_tools: &[String],
-    ) -> AgentResult<()> {
+    ///
+    /// 工具启用范围由 [`McpServerConfig::allowed_tools`] 归一为 [`ToolPolicy`] 后随连接保存。
+    ///
+    /// # Parameters
+    ///
+    /// * `server` - 单个服务的完整绑定配置（服务名 + 允许工具 + 连接参数）
+    pub async fn connect(&mut self, server: &McpServerConfig) -> AgentResult<()> {
+        let service_name = server.service_name.as_str();
+        let config = &server.server_config;
         let transport_type = config
             .transport_type
             .as_deref()
             .unwrap_or("stdio")
             .to_string();
-        let (server_sink, running) = match transport_type.as_str() {
+        let (peer, running) = match transport_type.as_str() {
             "stdio" => self.connect_stdio(service_name, config).await?,
             "http" | "streamable_http" | "sse" => self.connect_http(service_name, config).await?,
             other => {
@@ -286,13 +345,49 @@ impl McpRegistry {
             McpConnection {
                 service_name: service_name.to_string(),
                 transport_type,
-                server_sink,
-                allowed_tools: allowed_tools.to_vec(),
+                description: Self::snapshot_description(service_name, &peer),
+                peer,
+                policy: ToolPolicy::from_config(&server.allowed_tools),
                 running,
             },
         );
 
         Ok(())
+    }
+
+    /// 从握手结果生成服务端元数据快照
+    ///
+    /// rmcp 3.8 起服务端身份是可选的（discovery 响应不强制提供），
+    /// 缺失时各字段退化为空值而非报错。
+    ///
+    /// # Parameters
+    ///
+    /// * `service_name` - MCP 服务名称
+    /// * `peer` - 已完成握手的客户端句柄
+    fn snapshot_description(service_name: &str, peer: &Peer<RoleClient>) -> McpServiceDescription {
+        match peer.peer_info() {
+            Some(info) => {
+                let server = info.server_info.clone().unwrap_or_default();
+                McpServiceDescription {
+                    service_name: service_name.to_string(),
+                    server_name: server.name.clone(),
+                    server_version: server.version.clone(),
+                    server_title: server.title.clone(),
+                    server_description: server.description.clone(),
+                    instructions: info.instructions.clone(),
+                    protocol_version: info.protocol_version.as_str().to_string(),
+                }
+            }
+            None => McpServiceDescription {
+                service_name: service_name.to_string(),
+                server_name: String::new(),
+                server_version: String::new(),
+                server_title: None,
+                server_description: None,
+                instructions: None,
+                protocol_version: String::new(),
+            },
+        }
     }
 
     /// 建立 stdio 连接
@@ -303,7 +398,7 @@ impl McpRegistry {
         &self,
         service_name: &str,
         config: &McpServiceEntry,
-    ) -> AgentResult<(ServerSink, Box<dyn std::any::Any + Send + Sync>)> {
+    ) -> AgentResult<(Peer<RoleClient>, Box<dyn std::any::Any + Send + Sync>)> {
         let command = config.command.as_deref().ok_or_else(|| Error::McpConfig {
             service_name: service_name.to_string(),
             message: "stdio config missing 'command' field".to_string(),
@@ -342,7 +437,7 @@ impl McpRegistry {
         &self,
         service_name: &str,
         config: &McpServiceEntry,
-    ) -> AgentResult<(ServerSink, Box<dyn std::any::Any + Send + Sync>)> {
+    ) -> AgentResult<(Peer<RoleClient>, Box<dyn std::any::Any + Send + Sync>)> {
         let url = config.url.as_deref().ok_or_else(|| Error::McpConfig {
             service_name: service_name.to_string(),
             message: "missing url".to_string(),
@@ -366,8 +461,9 @@ impl McpRegistry {
             custom_headers.insert(header_name, header_value);
         }
 
-        let transport_config =
-            StreamableHttpClientTransportConfig::with_uri(url).custom_headers(custom_headers);
+        // rmcp 3.8 起自定义请求头通过 config 字段直接设置（不再有 builder 方法）
+        let mut transport_config = StreamableHttpClientTransportConfig::with_uri(url);
+        transport_config.custom_headers = custom_headers;
 
         // Build reqwest client: apply timeout if configured, otherwise use default
         let http_client = {
@@ -395,106 +491,21 @@ impl McpRegistry {
 }
 
 impl McpRegistry {
-    /// 获取指定服务已过白名单过滤的原始工具列表
+    /// 获取指定服务的可用工具列表（已应用 [`ToolPolicy`]）
     ///
     /// 返回 `rmcp::model::Tool`，不做 LLM tool 转换。
-    /// 调用方可通过 `McpTool::from_mcp_server(tool, sink)` 自行转换。
     ///
     /// # Parameters
     ///
     /// * `service_name` - MCP 服务名称
     ///
-    /// # Returns
+    /// # Errors
     ///
-    /// `(ServerSink, Vec<rmcp::model::Tool>)` — 连接句柄与工具列表
-    pub async fn get_enabled_tools(
-        &self,
-        service_name: &str,
-    ) -> AgentResult<(ServerSink, Vec<rmcp::model::Tool>)> {
-        let conn = self
-            .connections
-            .get(service_name)
-            .ok_or_else(|| Error::McpServiceNotFound {
-                service_name: service_name.to_string(),
-            })?;
-        let tools = self.filter_tools(conn).await?;
-        Ok((conn.server_sink.clone(), tools))
-    }
-
-    /// 获取所有服务已过白名单过滤的原始工具列表
-    ///
-    /// 返回 `(ServerSink, rmcp::model::Tool)` 对，调用方自行转换为 `McpTool`。
-    /// 单个服务获取失败时记录警告并跳过，不影响其他服务。
-    ///
-    /// # Returns
-    ///
-    /// `Vec<(ServerSink, rmcp::model::Tool)>` — 所有服务的工具列表
-    pub async fn list_all_enabled_tools(
-        &self,
-    ) -> AgentResult<Vec<(ServerSink, rmcp::model::Tool)>> {
-        let mut result = Vec::new();
-
-        for conn in self.connections.values() {
-            match self.filter_tools(conn).await {
-                Ok(tools) => {
-                    debug!(
-                        service_name = %conn.service_name,
-                        tools_count = tools.len(),
-                        "MCP tools listed"
-                    );
-                    for tool in tools {
-                        result.push((conn.server_sink.clone(), tool));
-                    }
-                }
-                Err(e) => {
-                    warn!(
-                        service_name = %conn.service_name,
-                        error = %e,
-                        "Failed to list tools from MCP service, skipped"
-                    );
-                }
-            }
-        }
-
-        Ok(result)
-    }
-
-    /// 获取指定服务的所有原始工具列表（不经过白名单过滤）
-    ///
-    /// 返回该服务注册的全部 `rmcp::model::Tool`，忽略 `allowed_tools` 白名单。
-    /// 适用于需要查看服务完整工具能力的场景。
-    ///
-    /// # Parameters
-    ///
-    /// * `service_name` - MCP 服务名称
-    ///
-    /// # Returns
-    ///
-    /// `(ServerSink, Vec<rmcp::model::Tool>)` — 连接句柄与完整工具列表
-    pub async fn get_service_all_tools(
-        &self,
-        service_name: &str,
-    ) -> AgentResult<(ServerSink, Vec<rmcp::model::Tool>)> {
-        let conn = self
-            .connections
-            .get(service_name)
-            .ok_or_else(|| Error::McpServiceNotFound {
-                service_name: service_name.to_string(),
-            })?;
-        let tools = self.fetch_tools(conn).await?;
-        Ok((conn.server_sink.clone(), tools))
-    }
-
-    /// 获取所有已连接的服务名称列表（owned）
-    ///
-    /// 与 `service_names()` 不同，返回 `Vec<String>` 而非借用引用，
-    /// 适用于需要跨异步边界传递的场景。
-    ///
-    /// # Returns
-    ///
-    /// `Vec<String>` — 所有已连接服务的名称列表
-    pub fn list_all_service_names(&self) -> Vec<String> {
-        self.connections.keys().cloned().collect()
+    /// 服务未连接（[`Error::McpServiceNotFound`]）或拉取工具失败（[`Error::McpToolList`]）
+    pub async fn tools_of(&self, service_name: &str) -> AgentResult<Vec<rmcp::model::Tool>> {
+        let conn = self.connection(service_name)?;
+        let tools = self.list_tools(conn).await?;
+        Ok(conn.policy.apply(tools))
     }
 
     /// 获取指定 MCP 服务的描述信息
@@ -505,52 +516,24 @@ impl McpRegistry {
     /// # Parameters
     ///
     /// * `service_name` - MCP 服务名称
-    ///
-    /// # Returns
-    ///
-    /// `McpServiceDescription` — 服务描述信息
-    pub fn get_service_description(
-        &self,
-        service_name: &str,
-    ) -> AgentResult<McpServiceDescription> {
-        let conn = self
-            .connections
+    pub fn service_description(&self, service_name: &str) -> AgentResult<McpServiceDescription> {
+        Ok(self.connection(service_name)?.description.clone())
+    }
+
+    /// 按服务名取连接，不存在时报 [`Error::McpServiceNotFound`]
+    fn connection(&self, service_name: &str) -> AgentResult<&McpConnection> {
+        self.connections
             .get(service_name)
             .ok_or_else(|| Error::McpServiceNotFound {
                 service_name: service_name.to_string(),
-            })?;
-        Ok(Self::build_description(conn))
+            })
     }
 
-    /// 从连接中构建服务描述信息
-    fn build_description(conn: &McpConnection) -> McpServiceDescription {
-        let peer_info = conn.server_sink.peer_info();
-
-        match peer_info {
-            Some(info) => McpServiceDescription {
-                service_name: conn.service_name.clone(),
-                server_name: info.server_info.name.clone(),
-                server_version: info.server_info.version.clone(),
-                server_title: info.server_info.title.clone(),
-                server_description: info.server_info.description.clone(),
-                instructions: info.instructions.clone(),
-                protocol_version: info.protocol_version.as_str().to_string(),
-            },
-            None => McpServiceDescription {
-                service_name: conn.service_name.clone(),
-                server_name: String::new(),
-                server_version: String::new(),
-                server_title: None,
-                server_description: None,
-                instructions: None,
-                protocol_version: String::new(),
-            },
-        }
-    }
-
-    /// 从连接中获取全部原始工具列表（不过滤）
-    async fn fetch_tools(&self, conn: &McpConnection) -> AgentResult<Vec<rmcp::model::Tool>> {
-        conn.server_sink
+    /// 从连接中拉取服务端声明的完整工具列表（未过滤）
+    ///
+    /// 仅本模块内部使用：对外一律通过 [`Self::tools_of`] 暴露过滤后的视图。
+    async fn list_tools(&self, conn: &McpConnection) -> AgentResult<Vec<rmcp::model::Tool>> {
+        conn.peer
             .list_all_tools()
             .await
             .map_err(|e| Error::McpToolList {
@@ -558,97 +541,66 @@ impl McpRegistry {
                 message: format!("{e}"),
             })
     }
-
-    /// 从连接中获取已过白名单过滤的原始工具列表
-    ///
-    /// 白名单语义：
-    /// - 空列表 → 无可用工具，返回空列表
-    /// - 包含 `"*"` → 所有工具可用（本地配置默认行为）
-    /// - 其他 → 仅返回白名单中列出的工具
-    async fn filter_tools(&self, conn: &McpConnection) -> AgentResult<Vec<rmcp::model::Tool>> {
-        if conn.allowed_tools.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let tools = self.fetch_tools(conn).await?;
-
-        // Wildcard: all tools allowed
-        if conn.allowed_tools.contains(&"*".to_string()) {
-            return Ok(tools);
-        }
-
-        let result = tools
-            .into_iter()
-            .filter(|tool| conn.allowed_tools.contains(&tool.name.to_string()))
-            .collect();
-
-        Ok(result)
-    }
 }
 
 /// Rig Tools
 impl McpRegistry {
-    /// Build MCP tools as a flat list of boxed tools (alternative to
-    /// [`Self::build_toolset`]).
+    /// 构建可注入 rig 的工具列表：远端 MCP 工具 + 内省工具
     ///
-    /// Returns every remote MCP tool plus the introspection tools
-    /// (`mcp_service_list`, `mcp_service_tools`) as a single
-    /// `Vec<Box<dyn ToolDyn>>`. This shape is friendlier for callers that
-    /// pipe tools into [`crate::tool::ToolPool`] via
-    /// [`crate::tool::ToolPool::register_many`] / `register_mcp_boxed`,
-    /// avoiding any intermediate `ToolSet` whose internals are not iterable
-    /// from outside `rig_core`.
-    pub async fn build_tools(&self) -> Vec<Box<dyn ToolDyn>> {
-        let mut tools: Vec<Box<dyn ToolDyn>> = Vec::new();
-
-        // Collect per-service tool info for introspection tools
-        let mut services_info = Vec::new();
-        let mut service_tools_map = HashMap::new();
+    /// 远端工具已按 [`ToolPolicy`] 过滤；末尾追加 `mcp_service_list` 与
+    /// `mcp_service_tools` 两个内省工具（其快照同样只含已启用工具）。
+    /// 单个服务拉取工具失败时记录警告并跳过，不影响其他服务。
+    ///
+    /// 返回的扁平 `Vec<DynamicTool>` 可直接交给
+    /// [`crate::tool::ToolPool::register_many`] / `register_rig_tool_boxed`。
+    pub async fn build_tools(&self) -> Vec<DynamicTool> {
+        let mut tools: Vec<DynamicTool> = Vec::new();
+        let mut services_info = Vec::with_capacity(self.connections.len());
+        let mut service_tools_map = HashMap::with_capacity(self.connections.len());
 
         for conn in self.connections.values() {
-            match self.filter_tools(conn).await {
-                Ok(remote_tools) => {
-                    debug!(
-                        service_name = %conn.service_name,
-                        tools_count = remote_tools.len(),
-                        "MCP tools listed"
-                    );
-
-                    let tool_infos: Vec<McpToolInfo> = remote_tools
-                        .iter()
-                        .map(|t| McpToolInfo {
-                            name: t.name.to_string(),
-                            description: t.description.as_deref().unwrap_or("").to_string(),
-                        })
-                        .collect();
-
-                    services_info.push(McpServiceInfo {
-                        name: conn.service_name.clone(),
-                        transport_type: conn.transport_type.clone(),
-                        tool_count: remote_tools.len(),
-                    });
-                    service_tools_map.insert(conn.service_name.clone(), tool_infos);
-
-                    for tool in remote_tools {
-                        tools.push(Box::new(McpTool::from_mcp_server(
-                            tool,
-                            conn.server_sink.clone(),
-                        )));
-                    }
-                }
+            let remote_tools = match self.list_tools(conn).await {
+                Ok(remote_tools) => conn.policy.apply(remote_tools),
                 Err(e) => {
                     warn!(
                         service_name = %conn.service_name,
                         error = %e,
                         "Failed to list tools from MCP service, skipped"
                     );
+                    continue;
                 }
+            };
+
+            debug!(
+                service_name = %conn.service_name,
+                tools_count = remote_tools.len(),
+                "MCP tools listed"
+            );
+
+            let tool_infos: Vec<McpToolInfo> = remote_tools
+                .iter()
+                .map(|tool| McpToolInfo {
+                    name: tool.name.to_string(),
+                    description: tool.description.as_deref().unwrap_or("").to_string(),
+                })
+                .collect();
+
+            services_info.push(McpServiceInfo {
+                name: conn.service_name.clone(),
+                transport_type: conn.transport_type.clone(),
+                tool_count: remote_tools.len(),
+                description: conn.description.server_description.clone(),
+            });
+            service_tools_map.insert(conn.service_name.clone(), tool_infos);
+
+            for tool in remote_tools {
+                tools.push(McpToolExecTool::new(tool, conn.peer.clone()).into_dynamic_tool());
             }
         }
 
         // Introspection tools
-        tools.push(Box::new(McpServiceListTool::new(services_info)));
-        tools.push(Box::new(McpServiceToolsTool::new(service_tools_map)));
+        tools.push(dynamic_tool(McpServiceListTool::new(services_info)));
+        tools.push(dynamic_tool(McpServiceToolsTool::new(service_tools_map)));
 
         tools
     }

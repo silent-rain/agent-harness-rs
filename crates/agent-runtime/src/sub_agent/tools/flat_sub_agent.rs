@@ -1,29 +1,30 @@
 //! Flat-mode sub-agent delegation tool
 //!
-//! Each sub-agent is exposed as an **independent** [`ContextualTool`] named
+//! Each sub-agent is exposed as an **independent** dynamic tool named
 //! `sub_agent_{name}`. This gives the LLM native function-calling selection
 //! semantics (instead of the routing-via-argument used by
 //! [`DelegateSubAgentTool`](super::DelegateSubAgentTool)) and supports
 //! parallel invocation of multiple sub-agents.
 //!
+//! 工具名在构造期计算，`Tool::NAME` 只能是常量前缀，因此注册时通过
+//! [`dynamic_tool_named`](crate::tool::dynamic_tool_named) 覆盖名称。
+//!
 //! See the parent module docs for the trade-off matrix.
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use futures::StreamExt;
-use rig_core::{client::CompletionClient, providers::openai};
+use rig_core::tool::{DynamicTool, Tool, ToolContext};
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 use crate::{
-    Agent, AgentBuilder, AgentResult, LlmAgent,
+    Agent, AgentBuilder, LlmAgent,
     error::Error,
     model::ModelAdapter,
     runtime::RuntimeServices,
     session::{AgentStreamEvent, FinishReason, event::DelegateType},
-    tool::{ContextualTool, ToolCallCtx, ToolPool},
+    tool::{AgentRun, ToolContextExt, ToolPool, dynamic_tool_named},
     types::agent_meta::AgentMeta,
     types::runtime::{AgentBundle, ModelConfig},
 };
@@ -33,9 +34,10 @@ const FLAT_TOOL_PREFIX: &str = "sub_agent_";
 
 /// Flat-mode sub-agent delegation tool
 ///
-/// Wraps a single sub-agent as an independent [`ContextualTool`]. The tool
-/// name is `sub_agent_{name}` where `{name}` is the sub-agent's configured
-/// name (with hyphens preserved).
+/// Wraps a single sub-agent as an independent dynamic tool. The tool name is
+/// `sub_agent_{name}` where `{name}` is the sub-agent's configured name
+/// (with hyphens preserved); it is applied at registration time through
+/// [`FlatSubAgentTool::into_dynamic_tool`].
 pub struct FlatSubAgentTool {
     /// The sub-agent bundle this tool instance wraps.
     bundle: AgentBundle,
@@ -68,6 +70,14 @@ impl FlatSubAgentTool {
         &self.tool_name
     }
 
+    /// 转成带运行期名称（`sub_agent_{name}`）的 [`DynamicTool`]。
+    ///
+    /// rig 的 [`Tool::NAME`] 是常量，运行期名称只能在这一层覆盖。
+    pub fn into_dynamic_tool(self) -> DynamicTool {
+        let name = self.tool_name.clone();
+        dynamic_tool_named(&name, self)
+    }
+
     /// The wrapped sub-agent's configured name.
     pub fn sub_agent_name(&self) -> &str {
         &self.bundle.agent_definition.name
@@ -75,7 +85,7 @@ impl FlatSubAgentTool {
 
     /// Build a child [`LlmAgent`] from the stored bundle, injecting parent context
     /// via [`AgentMeta`] so the child skips session lifecycle management.
-    async fn build_child_agent(&self, ctx: &ToolCallCtx<'_>) -> Result<LlmAgent, Error> {
+    async fn build_child_agent(&self, run: &AgentRun) -> Result<LlmAgent, Error> {
         let bundle = &self.bundle;
         let model = self.build_model(&bundle.model_config)?;
 
@@ -88,11 +98,7 @@ impl FlatSubAgentTool {
 
         // Inject parent context so the child skips session lifecycle management
         // and avoids overwriting the parent's Running status.
-        let meta = AgentMeta::sub_agent(
-            ctx.run_id.to_string(),
-            ctx.agent_id,
-            ctx.session_id.to_string(),
-        );
+        let meta = AgentMeta::sub_agent(run.run_id.clone(), run.agent_id, run.session_id.clone());
 
         AgentBuilder::from_bundle(child_bundle, model)
             .with_global_tool_pool(Arc::clone(&self.tool_pool))
@@ -103,15 +109,7 @@ impl FlatSubAgentTool {
     }
 
     fn build_model(&self, binding: &ModelConfig) -> Result<Arc<dyn ModelAdapter>, Error> {
-        let client = openai::Client::builder()
-            .api_key(binding.api_key.as_str())
-            .base_url(binding.base_url.as_str())
-            .build()
-            .map_err(|e| Error::ModelCall(format!("build openai client failed: {e}")))?
-            .completions_api();
-
-        let model = client.completion_model(binding.model.as_str());
-        Ok(Arc::new(model))
+        crate::model::create_model(binding)
     }
 
     /// Convenience factory: produce one [`FlatSubAgentTool`] per bundle.
@@ -126,18 +124,6 @@ impl FlatSubAgentTool {
                 FlatSubAgentTool::new(bundle.clone(), Arc::clone(&tool_pool), services.clone())
             })
             .collect()
-    }
-
-    /// 向 events 通道发送一个事件
-    async fn emit(
-        &self,
-        events: &mpsc::Sender<AgentStreamEvent>,
-        event: AgentStreamEvent,
-    ) -> AgentResult<()> {
-        events
-            .send(event)
-            .await
-            .map_err(|e| Error::Streaming(e.to_string()))
     }
 }
 
@@ -157,19 +143,15 @@ pub struct FlatSubAgentOutput {
     error: Option<String>,
 }
 
-#[async_trait]
-impl ContextualTool for FlatSubAgentTool {
+impl Tool for FlatSubAgentTool {
     /// Static prefix; the real per-instance tool name (`sub_agent_{code}`)
-    /// is returned from [`Self::name`] override below — the runtime keys
-    /// dispatch off the instance method, never the constant.
-    const NAME: &'static str = FLAT_TOOL_PREFIX;
+    /// is applied when the tool is erased into a [`DynamicTool`]
+    /// ([`Self::into_dynamic_tool`]) — the runtime keys dispatch off the
+    /// erased name, never this constant.
+    const NAME: &'static str = "flat_sub_agent_tool";
     type Args = FlatSubAgentArgs;
     type Output = FlatSubAgentOutput;
     type Error = Error;
-
-    fn name(&self) -> &str {
-        &self.tool_name
-    }
 
     fn description(&self) -> String {
         let def = &self.bundle.agent_definition;
@@ -198,20 +180,22 @@ impl ContextualTool for FlatSubAgentTool {
 
     async fn call(
         &self,
-        ctx: ToolCallCtx<'_>,
+        ctx: &mut ToolContext,
         args: Self::Args,
     ) -> Result<Self::Output, Self::Error> {
+        let run = ctx.agent_run()?;
+        let scope = ctx.run_scope()?;
         let task = &args.task;
         let sub_agent_name = self.sub_agent_name().to_string();
         info!(
             sub_agent_name = %sub_agent_name,
             tool_name = %self.tool_name,
             task = %task,
-            parent_run_id = %ctx.run_id,
+            parent_run_id = %run.run_id,
             "Flat-mode: delegating task to sub-agent"
         );
 
-        let child = match self.build_child_agent(&ctx).await {
+        let child = match self.build_child_agent(&run).await {
             Ok(rt) => rt,
             Err(e) => {
                 warn!(
@@ -228,7 +212,7 @@ impl ContextualTool for FlatSubAgentTool {
             }
         };
 
-        let mut stream = match child.run_stream(ctx.session_id, task) {
+        let mut stream = match child.run_stream(&run.session_id, task) {
             Ok(s) => s,
             Err(e) => {
                 warn!(
@@ -270,14 +254,14 @@ impl ContextualTool for FlatSubAgentTool {
             }
 
             let wrapped = AgentStreamEvent::SubAgentEvent {
-                parent_run_id: ctx.run_id.to_string(),
-                parent_agent_id: ctx.agent_id,
-                parent_session_id: ctx.session_id.to_string(),
+                parent_run_id: run.run_id.clone(),
+                parent_agent_id: run.agent_id,
+                parent_session_id: run.session_id.clone(),
                 delegate_target: sub_agent_name.clone(),
                 delegate_type: DelegateType::SubAgent,
                 event: Box::new(event),
             };
-            if self.emit(ctx.events, wrapped).await.is_err() {
+            if scope.emit(wrapped).await.is_err() {
                 warn!(
                     sub_agent_name = %sub_agent_name,
                     "Parent event channel closed; stop forwarding child events"
@@ -356,7 +340,7 @@ mod tests {
         let bundle = make_bundle("code-reviewer", "Reviews code for quality");
         let tool = FlatSubAgentTool::new(bundle, tool_pool, RuntimeServices::noop());
 
-        assert_eq!(tool.name(), "sub_agent_code-reviewer");
+        assert_eq!(tool.tool_name(), "sub_agent_code-reviewer");
         assert!(tool.description().contains("code-reviewer"));
         assert!(tool.description().contains("Reviews code for quality"));
     }
@@ -367,7 +351,7 @@ mod tests {
         let bundle = make_bundle("helper", "");
         let tool = FlatSubAgentTool::new(bundle, tool_pool, RuntimeServices::noop());
 
-        assert_eq!(tool.name(), "sub_agent_helper");
+        assert_eq!(tool.tool_name(), "sub_agent_helper");
         assert!(tool.description().contains("helper"));
         assert!(tool.description().contains("Delegate a task"));
     }

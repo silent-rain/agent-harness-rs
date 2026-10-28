@@ -4,31 +4,31 @@
 //! parent agent's LLM can invoke via function calling. The LLM picks the
 //! target sub-agent through the `sub_agent_name` argument.
 //!
-//! ## Why a [`ContextualTool`] (not `rig::Tool`)?
+//! ## 运行期上下文
 //!
-//! Sub-agent delegation needs runtime context that `rig::Tool` cannot
-//! carry: the parent event sender (to forward child stream events as
-//! [`AgentStreamEvent::SubAgentEvent`]) and the parent `run_id` (for
-//! correlation). Earlier revisions stashed both in
-//! `Arc<RwLock<Option<...>>>` slots; they are now passed as borrowed
-//! [`ToolCallCtx`] fields at call time \u2014 no shared mutable state.
+//! 子 Agent 委派需要运行时上下文：父运行事件通道（把子流事件以
+//! [`AgentStreamEvent::SubAgentEvent`] 透传）与父 `run_id`（关联用）。
+//!
+//! 二者都来自 rig 的 [`ToolContext`]：
+//! - `run_id` / `session_id` / `agent_id` / `user_id` 走 inbound（[`AgentRun`]）；
+//! - 事件通道走 scope（[`AgentRunScope`](crate::tool::AgentRunScope)）。
+//!
+//! 工具实例本身无运行期可变状态，同一份实例可被多个运行并发复用。
 
 use std::{collections::HashMap, sync::Arc};
 
-use async_trait::async_trait;
 use futures::StreamExt;
-use rig_core::{client::CompletionClient, providers::openai};
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 use crate::{
-    Agent, AgentBuilder, AgentResult, LlmAgent,
+    Agent, AgentBuilder, LlmAgent,
     error::Error,
     model::ModelAdapter,
     runtime::RuntimeServices,
     session::{AgentStreamEvent, FinishReason, event::DelegateType},
-    tool::{ContextualTool, ToolCallCtx, ToolPool},
+    tool::{AgentRun, ToolContextExt, ToolPool},
     types::agent_meta::AgentMeta,
     types::runtime::{AgentBundle, ModelConfig},
 };
@@ -36,10 +36,11 @@ use crate::{
 /// Sub-agent delegation tool (single-tool mode)
 ///
 /// One instance is registered into the parent agent's [`ToolPool`] as a
-/// [`ContextualTool`]. At call time it builds a fresh child [`LlmAgent`]
-/// from the matched [`AgentBundle`], runs the delegated task, forwards
-/// every child stream event through the borrowed parent sender, and
-/// returns the aggregated final answer as the tool result string.
+/// [`DynamicTool`](rig_core::tool::DynamicTool). At call time it builds a
+/// fresh child [`LlmAgent`] from the matched [`AgentBundle`], runs the
+/// delegated task, forwards every child stream event through the parent
+/// event channel taken from the [`ToolContext`] scope, and returns the
+/// aggregated final answer as the tool result string.
 pub struct DelegateSubAgentTool {
     /// Materialised sub-agent bundles indexed by name for O(1) lookup.
     sub_agents: Arc<HashMap<String, AgentBundle>>,
@@ -88,7 +89,7 @@ impl DelegateSubAgentTool {
     async fn build_child_agent(
         &self,
         bundle: &AgentBundle,
-        ctx: &ToolCallCtx<'_>,
+        run: &AgentRun,
     ) -> Result<LlmAgent, Error> {
         let model = self.build_model(&bundle.model_config)?;
 
@@ -101,11 +102,7 @@ impl DelegateSubAgentTool {
 
         // Inject parent context so the child skips session lifecycle management
         // and avoids overwriting the parent's Running status.
-        let meta = AgentMeta::sub_agent(
-            ctx.run_id.to_string(),
-            ctx.agent_id,
-            ctx.session_id.to_string(),
-        );
+        let meta = AgentMeta::sub_agent(run.run_id.clone(), run.agent_id, run.session_id.clone());
 
         AgentBuilder::from_bundle(child_bundle, model)
             .with_global_tool_pool(Arc::clone(&self.tool_pool))
@@ -117,27 +114,7 @@ impl DelegateSubAgentTool {
 
     /// Build an OpenAI-compatible [`ModelAdapter`] from [`ModelConfig`].
     fn build_model(&self, binding: &ModelConfig) -> Result<Arc<dyn ModelAdapter>, Error> {
-        let client = openai::Client::builder()
-            .api_key(binding.api_key.as_str())
-            .base_url(binding.base_url.as_str())
-            .build()
-            .map_err(|e| Error::ModelCall(format!("build openai client failed: {e}")))?
-            .completions_api();
-
-        let model = client.completion_model(binding.model.as_str());
-        Ok(Arc::new(model))
-    }
-
-    /// 向 events 通道发送一个事件
-    async fn emit(
-        &self,
-        events: &mpsc::Sender<AgentStreamEvent>,
-        event: AgentStreamEvent,
-    ) -> AgentResult<()> {
-        events
-            .send(event)
-            .await
-            .map_err(|e| Error::Streaming(e.to_string()))
+        crate::model::create_model(binding)
     }
 }
 
@@ -159,8 +136,7 @@ pub struct DelegateSubAgentOutput {
     error: Option<String>,
 }
 
-#[async_trait]
-impl ContextualTool for DelegateSubAgentTool {
+impl Tool for DelegateSubAgentTool {
     const NAME: &'static str = "delegate_sub_agent";
     type Args = DelegateSubAgentArgs;
     type Output = DelegateSubAgentOutput;
@@ -206,9 +182,11 @@ impl ContextualTool for DelegateSubAgentTool {
 
     async fn call(
         &self,
-        ctx: ToolCallCtx<'_>,
+        ctx: &mut ToolContext,
         args: Self::Args,
     ) -> Result<Self::Output, Self::Error> {
+        let run = ctx.agent_run()?;
+        let scope = ctx.run_scope()?;
         let sub_agent_name = &args.sub_agent_name;
         let task = &args.task;
         let run_id = uuid::Uuid::new_v4().to_string();
@@ -232,12 +210,12 @@ impl ContextualTool for DelegateSubAgentTool {
         info!(
             sub_agent_name = %sub_agent_name,
             task = %task,
-            parent_run_id = %ctx.run_id,
+            parent_run_id = %run.run_id,
             run_id = run_id,
             "Delegating task to sub-agent"
         );
 
-        let child = match self.build_child_agent(bundle, &ctx).await {
+        let child = match self.build_child_agent(bundle, &run).await {
             Ok(rt) => rt,
             Err(e) => {
                 warn!(
@@ -254,7 +232,7 @@ impl ContextualTool for DelegateSubAgentTool {
             }
         };
 
-        let mut stream = match child.run_stream(ctx.session_id, task) {
+        let mut stream = match child.run_stream(&run.session_id, task) {
             Ok(s) => s,
             Err(e) => {
                 warn!(
@@ -296,14 +274,14 @@ impl ContextualTool for DelegateSubAgentTool {
             }
 
             let wrapped = AgentStreamEvent::SubAgentEvent {
-                parent_run_id: ctx.run_id.to_string(),
-                parent_agent_id: ctx.agent_id,
-                parent_session_id: ctx.session_id.to_string(),
+                parent_run_id: run.run_id.clone(),
+                parent_agent_id: run.agent_id,
+                parent_session_id: run.session_id.clone(),
                 delegate_target: sub_agent_name.clone(),
                 delegate_type: DelegateType::SubAgent,
                 event: Box::new(event),
             };
-            if self.emit(ctx.events, wrapped).await.is_err() {
+            if scope.emit(wrapped).await.is_err() {
                 warn!(
                     sub_agent_name = %sub_agent_name,
                     "Parent event channel closed; stop forwarding child events"
@@ -331,6 +309,7 @@ mod tests {
 
     use super::*;
 
+    use crate::tool::call_context;
     use crate::types::runtime::{AgentDefinition, ModelConfig};
 
     fn make_bundle(name: &str, description: &str) -> AgentBundle {
@@ -377,7 +356,7 @@ mod tests {
         let tool_pool = Arc::new(ToolPool::new());
         let tool = DelegateSubAgentTool::new(&configs, tool_pool, RuntimeServices::noop());
 
-        assert_eq!(tool.name(), "delegate_sub_agent");
+        assert_eq!(DelegateSubAgentTool::NAME, "delegate_sub_agent");
         assert!(tool.description().contains("code-reviewer"));
         assert!(tool.description().contains("doc-writer"));
         assert!(tool.description().contains("Reviews code for quality"));
@@ -390,17 +369,11 @@ mod tests {
         let tool = DelegateSubAgentTool::new(&configs, tool_pool, RuntimeServices::noop());
 
         let (tx, _rx) = tokio::sync::mpsc::channel(8);
-        let ctx = ToolCallCtx {
-            run_id: "run-1",
-            step: 0,
-            events: &tx,
-            session_id: "sess-1",
-            agent_id: 0,
-            user_id: "0",
-        };
-        let payload = ContextualTool::call(
+        let mut ctx = call_context(AgentRun::new("run-1", "sess-1", 0, "0"), 0, tx.clone())
+            .expect("测试上下文构造失败");
+        let payload = Tool::call(
             &tool,
-            ctx,
+            &mut ctx,
             DelegateSubAgentArgs {
                 sub_agent_name: "nonexistent".to_string(),
                 task: "do something".to_string(),

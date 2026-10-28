@@ -5,12 +5,12 @@
 //!
 //! ## 设计说明
 //!
-//! 规则内容在启动时已全量注入 System Prompt，无需按需加载。
-//! 此工具仅用于让 LLM 了解当前生效的规则集合。
+//! 规则内容在启动时已全量注入 System Prompt，此工具仅用于让 LLM 了解当前生效的规则集合。
+//! 需要某条规则的正文原文时，改用 [`RuleLoadTool`](crate::rule::RuleLoadTool)。
 
 use std::sync::Arc;
 
-use rig_core::tool::Tool;
+use rig_core::tool::{Tool, ToolContext};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -94,7 +94,11 @@ impl Tool for RuleListTool {
         })
     }
 
-    async fn call(&self, _args: Self::Args) -> Result<Self::Output, Self::Error> {
+    async fn call(
+        &self,
+        _ctx: &mut ToolContext,
+        _args: Self::Args,
+    ) -> Result<Self::Output, Self::Error> {
         Ok(RuleListOutput {
             total: self.entries.len(),
             rules: (*self.entries).clone(),
@@ -138,7 +142,10 @@ mod tests {
         let rules = make_rules();
         let tool = RuleListTool::new(&rules);
 
-        let result = tool.call(RuleListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), RuleListArgs {})
+            .await
+            .unwrap();
 
         assert_eq!(result.total, 3);
         assert_eq!(result.rules.len(), 3);
@@ -149,7 +156,10 @@ mod tests {
         let rules = make_rules();
         let tool = RuleListTool::new(&rules);
 
-        let result = tool.call(RuleListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), RuleListArgs {})
+            .await
+            .unwrap();
 
         let names: Vec<&str> = result.rules.iter().map(|r| r.name.as_str()).collect();
         assert_eq!(names, vec!["code-style", "db-rule-001", "security"]);
@@ -160,7 +170,10 @@ mod tests {
         let rules = make_rules();
         let tool = RuleListTool::new(&rules);
 
-        let result = tool.call(RuleListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), RuleListArgs {})
+            .await
+            .unwrap();
 
         let db_rule = result
             .rules
@@ -177,7 +190,10 @@ mod tests {
     async fn test_rule_list_empty_registry() {
         let tool = RuleListTool::new(&[]);
 
-        let result = tool.call(RuleListArgs {}).await.unwrap();
+        let result = tool
+            .call(&mut ToolContext::new(), RuleListArgs {})
+            .await
+            .unwrap();
 
         assert_eq!(result.total, 0);
         assert!(result.rules.is_empty());
