@@ -54,7 +54,7 @@ axum = "0.8"
 tonic = "0.14"
 
 # 后台服务
-validator = "0.20"
+validator = "0.21"
 validator_derive = "0.20"
 
 # 网络相关
@@ -63,8 +63,8 @@ mime_guess = "2.0" # mime
 
 
 # 数据库
-sea-orm = "1.1"
-sea-orm-migration = "1.1"
+sea-orm = "2.0.4"
+sea-orm-migration = "2.0.4"
 sqlx = "0.9"
 
 # 依赖注入
@@ -72,9 +72,9 @@ nject = "0.5"
 
 
 # AI
-rig-core = "0.40"
-async-openai = "0.41"
-rmcp = "1.8"
+rig-core = "0.45"
+async-openai = "0.42"
+rmcp = "3.8"
 a2a-rs-core = "1.0"
 a2a-rs-server = "1.0"
 a2a-rs-client = "1.0"
@@ -99,20 +99,20 @@ strum = "0.28"
 strum_macros = "0.28"
 
 # 加密
-uuid = "1.23"
+uuid = "1.29"
 sha2 = "0.11"
-base64 = "0.22"
+base64 = "0.23"
 hex = "0.4"     # 用于将字节数组转为可读的十六进制字符串
 
 
 # 其他
 dotenv = "0.15"
-clap = "4"
+clap = "4.6"
 time = "0.3"
 chrono = "0.4"
-rust_decimal = "1.42"
-config = { version = "0.15" }
-toml = "1.1.2+spec-1.1.0"
+rust_decimal = "1.43"
+config = "0.15"
+toml = "1.1"
 glob = "0.3"
-zip = "8.6"
+zip = "9.1"
 tempfile = "3.23"
