@@ -4,35 +4,43 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# 核心组件
 database = { workspace = true }
 entity = { workspace = true }
 err-code = { workspace = true }
+
+# 依赖注入
 inject = { workspace = true }
+nject = { workspace = true }
+
+# Axum 插件
 axum-response = { workspace = true }
-axum-validator = { workspace = true }
+axum-context = { workspace = true }
+
 
 # 智能体核心
 agent-runtime = { workspace = true }
 agent-assembly = { workspace = true }
 
+# Web
 axum = { workspace = true }
-axum-context = { workspace = true }
 validator = { workspace = true, features = ["derive"] }
+validator_derive = { workspace = true }
 sea-orm = { workspace = true }
-nject = { workspace = true }
+
+futures = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+async-stream = { workspace = true }
 
 log = { workspace = true }
 tracing = { workspace = true }
+thiserror = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-futures = { workspace = true }
-thiserror = { workspace = true }
-tokio = { workspace = true }
-async-trait = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-async-stream = { workspace = true }
 
 [dev-dependencies]
 sea-orm-migration = { workspace = true }

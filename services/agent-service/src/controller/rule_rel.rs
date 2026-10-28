@@ -1,9 +1,9 @@
 //! 智能体规则绑定关系 HTTP 控制器
 
 use axum::Extension;
+use axum::extract::{Json, Query};
 use axum_context::Context;
 use axum_response::{Responder, Response};
-use axum_validator::{Json, Query};
 use inject::AInjectProvider;
 
 use crate::{

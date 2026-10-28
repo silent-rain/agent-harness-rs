@@ -30,23 +30,22 @@ inject = { path = "crates/core/inject" }
 database = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", branch = "dev", package = "database" }
 axum-context = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", branch = "dev", package = "axum-context" }
 axum-response = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", branch = "dev", package = "axum-response" }
-axum-validator = { git = "ssh://git@github.com/silent-rain/nucleus-rs.git", branch = "dev", package = "axum-validator" }
 
 # Agent Harness
 entity = { path = "crates/core/entity" }
-migration = { path = "crates/core/migration" }
+# migration = { path = "crates/core/migration" }
 agent-runtime = { path = "crates/agent-runtime" }
 agent-assembly = { path = "crates/agent-assembly" }
 
 # 异步运行时
 futures = "0.3"
 tokio = "1.52"
-tokio-util = "0.7"
+# tokio-util = "0.7"
 tokio-stream = "0.1"
 async-std = "1.13"
 async-trait = "0.1"
 async-stream = "0.3"
-listenfd = "1.0"
+# listenfd = "1.0"
 
 
 # 服务相关
@@ -94,16 +93,16 @@ colored = "3.0"
 # 序列化
 serde = "1.0"
 serde_json = "1.0"
-serde_repr = "0.1"
-serde_urlencoded = "0.7"
-strum = "0.28"
-strum_macros = "0.28"
+# serde_repr = "0.1"
+# serde_urlencoded = "0.7"
+# strum = "0.28"
+# strum_macros = "0.28"
 
 # 加密
 uuid = "1.29"
 sha2 = "0.11"
-base64 = "0.23"
-hex = "0.4"     # 用于将字节数组转为可读的十六进制字符串
+# base64 = "0.23"
+hex = "0.4" # 用于将字节数组转为可读的十六进制字符串
 
 
 # 其他
@@ -113,7 +112,7 @@ time = "0.3"
 chrono = "0.4"
 rust_decimal = "1.43"
 config = "0.15"
-toml = "1.1"
+# toml = "1.1"
 glob = "0.3"
 zip = "9.1"
 tempfile = "3.23"

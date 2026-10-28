@@ -1,7 +1,7 @@
 //! 工具注册表 HTTP 控制器
 
+use axum::extract::{Extension, Json, Query};
 use axum_response::{Responder, Response};
-use axum_validator::{Extension, Json, Query};
 use inject::AInjectProvider;
 
 use crate::{

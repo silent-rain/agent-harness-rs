@@ -157,10 +157,7 @@ fn matches_keyword(bytes: &[u8], pos: usize, kw: &[u8]) -> bool {
     }
     // 关键字之后必须是非字母数字
     let after = pos + kw.len();
-    if after < bytes.len() && (bytes[after].is_ascii_alphanumeric() || bytes[after] == b'_') {
-        return false;
-    }
-    true
+    !(after < bytes.len() && (bytes[after].is_ascii_alphanumeric() || bytes[after] == b'_'))
 }
 
 /// 判断 `pos` 是否处于词边界（前一个字符非字母数字下划线）。

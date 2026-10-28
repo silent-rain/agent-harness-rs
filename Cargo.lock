@@ -160,7 +160,6 @@ dependencies = [
  "axum 0.8.9",
  "axum-context",
  "axum-response",
- "axum-validator",
  "chrono",
  "database",
  "entity",
@@ -178,6 +177,7 @@ dependencies = [
  "tracing",
  "uuid",
  "validator",
+ "validator_derive",
 ]
 
 [[package]]
@@ -821,22 +821,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tonic",
-]
-
-[[package]]
-name = "axum-validator"
-version = "0.1.0"
-source = "git+ssh://git@github.com/silent-rain/nucleus-rs.git?branch=dev#583e2a1b7682be1eee31eac31af95ee6183efb4b"
-dependencies = [
- "axum 0.8.9",
- "log",
- "mime",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "thiserror 2.0.21",
- "validator",
- "validator_derive",
 ]
 
 [[package]]
